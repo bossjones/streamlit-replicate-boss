@@ -404,3 +404,7 @@ extras/
 
 # Claude Code data
 .claude/data/
+
+
+utils/seg.py
+.streamlit/secrets.toml
