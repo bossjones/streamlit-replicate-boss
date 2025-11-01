@@ -1,0 +1,8 @@
+{
+  "enabledMcpjsonServers": [
+    "ElevenLabs",
+    "firecrawl-mcp",
+    "perplexity-ask"
+  ],
+  "enableAllProjectMcpServers": true
+}
