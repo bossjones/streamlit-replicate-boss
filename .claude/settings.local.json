@@ -1,13 +1,14 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(git log:*)",
+      "Bash(git commit:*)"
+    ]
+  },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "ElevenLabs",
     "firecrawl-mcp",
     "perplexity-ask"
-  ],
-  "permissions": {
-    "allow": [
-      "Bash(git log:*)"
-    ]
-  }
+  ]
 }
