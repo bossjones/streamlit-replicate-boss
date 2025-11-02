@@ -1,8 +1,13 @@
 {
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "ElevenLabs",
     "firecrawl-mcp",
     "perplexity-ask"
   ],
-  "enableAllProjectMcpServers": true
+  "permissions": {
+    "allow": [
+      "Bash(git log:*)"
+    ]
+  }
 }
