@@ -26,7 +26,37 @@ The application is currently hardcoded to a single Replicate model endpoint, for
 
 ### Functional Requirements
 
-{{functional_requirements}}
+**Model Management & Configuration**
+
+- FR001: The system must support multiple Replicate model endpoints, including standard models (e.g., Stability AI SDXL) and custom-trained models (helldiver, starship-trooper, firebeardjones)
+- FR002: The system must load model configurations from a file-based storage system (YAML or JSON) at application startup
+- FR003: Each model configuration must include: unique identifier, display name, Replicate endpoint URL, optional trigger words, and default parameter settings
+- FR004: The system must provide a model selector UI component (dropdown/selectbox) in the sidebar that displays all available models
+- FR005: The system must validate configuration file format and structure on load, providing clear error messages if invalid
+- FR006: The system must select a default model on initial app load (first model in config or explicitly designated default)
+
+**Model Switching & State Management**
+
+- FR007: The system must allow users to switch between models instantly without page reload or navigation
+- FR008: When switching models, the system must preserve the current prompt text and user-entered settings (width, height, scheduler, etc.)
+- FR009: The system must update the UI to reflect the selected model, displaying model-specific information (trigger words, description) in the sidebar
+- FR010: The system must handle model-specific parameter differences by showing/hiding relevant controls based on the selected model's supported parameters
+- FR011: The system must persist the selected model in session state, maintaining selection across page interactions within the same session
+
+**Preset Management**
+
+- FR012: The system must support preset configurations that store trigger words and default settings per model
+- FR013: The system must automatically load and apply a preset when a model is selected, injecting trigger words into the prompt field
+- FR014: The system must allow users to manually override preset values (prompt, settings) after preset application
+- FR015: The system must store presets in a file-based storage system (YAML or JSON) linked to models via model identifier
+- FR016: The system must support at least one preset per model (default preset), with optional additional named presets per model
+
+**Integration & API**
+
+- FR017: The system must use the selected model's endpoint when making Replicate API calls for image generation
+- FR018: The system must validate model endpoints before making API calls and provide user feedback for API errors
+- FR019: The system must handle missing or invalid configuration files gracefully, with fallback to a default model if available, or clear error message if no models are configured
+- FR020: The system must maintain backward compatibility with existing single-model configuration (secrets.toml) while supporting new multi-model configuration
 
 ### Non-Functional Requirements
 
