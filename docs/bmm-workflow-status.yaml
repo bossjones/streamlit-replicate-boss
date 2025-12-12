@@ -33,9 +33,9 @@ workflow_status:
   document-project: "docs/index.md"
 
   # Phase 1: Analysis
-  brainstorm-project: optional
+  brainstorm-project: docs/brainstorming-session-results-2025-12-11.md
   research: optional
-  product-brief: optional
+  product-brief: docs/product-brief-streamlit-replicate-boss-2025-12-11.md
 
   # Phase 2: Planning
   prd: recommended
