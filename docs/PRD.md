@@ -58,6 +58,32 @@ The application is currently hardcoded to a single Replicate model endpoint, for
 - FR019: The system must handle missing or invalid configuration files gracefully, with fallback to a default model if available, or clear error message if no models are configured
 - FR020: The system must maintain backward compatibility with existing single-model configuration (secrets.toml) while supporting new multi-model configuration
 
+**Implementation Dependencies:**
+
+The functional requirements have the following critical dependency chain for implementation:
+
+1. **Foundation Layer** (Must be implemented first):
+   - FR002 (Config Load) → FR003 (Data Structure) → FR005 (Validation) → FR006 (Default Selection)
+   - FR020 (Backward Compatibility) should be considered early to avoid refactoring
+
+2. **Core Model Management** (Builds on foundation):
+   - FR001 (Multi-model support) enabled by FR002/FR003
+   - FR004 (Model Selector UI) depends on FR002/FR003/FR006
+
+3. **State Management** (Enables switching):
+   - FR011 (Session State) → FR007 (Model Switching) → FR008 (State Preservation)
+
+4. **UI Updates** (Depends on switching):
+   - FR009 (UI Reflection) and FR010 (Parameter Handling) depend on FR007
+
+5. **Preset System** (Can be developed in parallel with switching):
+   - FR015 (Preset Storage) → FR012 (Preset Support) → FR016 (Default Presets) → FR013 (Auto-apply) → FR014 (Manual Override)
+
+6. **API Integration** (Final layer):
+   - FR017 (Use Selected Endpoint) → FR018/FR019 (Error Handling)
+
+**Critical Path:** FR002 → FR003 → FR005 → FR006 → FR011 → FR004 → FR007 → FR009 → FR015 → FR012 → FR013 → FR017
+
 ### Non-Functional Requirements
 
 {{non_functional_requirements}}
