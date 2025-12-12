@@ -1,0 +1,43 @@
+# Model Configuration File
+# This file defines all available AI image generation models for the application.
+#
+# Schema:
+#   models: array of model objects
+#   Each model object contains:
+#     - id: string (required) - Unique identifier for the model
+#     - name: string (required) - Display name shown in UI
+#     - endpoint: string (required) - Replicate API endpoint (format: owner/model:version)
+#     - trigger_words: string or array (optional) - Model-specific trigger words to prepend/append to prompts
+#     - default_settings: object (optional) - Default parameter values for this model
+#
+# Example:
+#   models:
+#     - id: "sdxl"
+#       name: "Stability AI SDXL"
+#       endpoint: "stability-ai/sdxl:2b017d9b67edd2ee1401238df49d75da53c523f36e363881e057f5dc3ed3c5b2"
+#       trigger_words: []
+#       default_settings:
+#         width: 1024
+#         height: 1024
+
+models:
+  # Stability AI SDXL - Standard high-quality text-to-image model
+  - id: "sdxl"
+    name: "Stability AI SDXL"
+    endpoint: "stability-ai/sdxl:2b017d9b67edd2ee1401238df49d75da53c523f36e363881e057f5dc3ed3c5b2"
+    # trigger_words: []  # Optional: No specific trigger words for SDXL
+    # default_settings: {}  # Optional: Use application defaults
+
+  # Helldiver - Custom trained model for tactical armor themes
+  - id: "helldiver"
+    name: "Helldiver Tactical Armor"
+    endpoint: "iamprofessorex/helldiver:latest"  # Placeholder - update with actual endpoint
+    # trigger_words: ["helldiver", "tactical armor"]  # Optional: Model-specific trigger words
+    # default_settings: {}  # Optional: Model-specific default settings
+
+  # Starship Trooper - Custom trained model for uniform themes
+  - id: "starship-trooper"
+    name: "Starship Trooper Uniform"
+    endpoint: "iamprofessorex/starship-trooper:latest"  # Placeholder - update with actual endpoint
+    # trigger_words: ["starship trooper", "uniform"]  # Optional: Model-specific trigger words
+    # default_settings: {}  # Optional: Model-specific default settings
