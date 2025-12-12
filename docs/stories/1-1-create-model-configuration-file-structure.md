@@ -1,6 +1,6 @@
 # Story 1.1: Create Model Configuration File Structure
 
-Status: drafted
+Status: ready-for-dev
 
 ## Story
 
@@ -82,7 +82,7 @@ So that models can be easily added and managed without code changes.
 
 ### Context Reference
 
-<!-- Path(s) to story context XML will be added here by context workflow -->
+- docs/stories/1-1-create-model-configuration-file-structure.context.xml
 
 ### Agent Model Used
 
