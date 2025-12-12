@@ -218,7 +218,15 @@ The functional requirements have the following critical dependency chain for imp
 
 ## Epic List
 
-{{epic_list}}
+**Epic 1: Multi-Model Foundation & Configuration**
+- **Goal:** Establish multi-model infrastructure with configuration loading, model selector, and basic switching capability
+- **Estimated Stories:** 6-8 stories
+- **Delivers:** File-based model configuration, model selector UI, basic model switching, session state management, API integration with selected model endpoint
+
+**Epic 2: Preset System & Enhanced Model Switching**
+- **Goal:** Implement preset management system with auto-application and enhanced model switching with state preservation
+- **Estimated Stories:** 5-7 stories
+- **Delivers:** Preset storage and loading, auto-apply presets, trigger word injection, enhanced UI updates, backward compatibility with existing single-model configuration
 
 > **Note:** Detailed epic breakdown with full story specifications is available in [epics.md](./epics.md)
 
@@ -226,4 +234,40 @@ The functional requirements have the following critical dependency chain for imp
 
 ## Out of Scope
 
-{{out_of_scope}}
+**Model Management Features:**
+- Custom model management UI (add/edit models via form — MVP uses config file only)
+- Model favorites/starring system
+- Model search/filter by tags
+- Model grouping/categories
+- Model history tracking
+- Model comparison mode (side-by-side generation)
+- Batch generation across multiple models
+
+**Preset Management Features:**
+- Preset sharing/export functionality
+- Preset marketplace
+- Preset tags/categories
+- Preset templates
+- Settings diff view (compare current vs. saved preset)
+- Version control for presets
+
+**Discovery and Inspiration:**
+- Example gallery per model (pull from Replicate)
+- "Try this prompt" button
+- Model preview cards
+- Model metadata display (runs, cost, examples from Replicate)
+
+**Advanced Features:**
+- AI-powered preset recommendations
+- Workflow templates
+- Mobile/tablet optimized interface
+- API access for programmatic image generation
+- Integration with other AI platforms beyond Replicate
+
+**Infrastructure:**
+- Database for configuration storage (MVP uses file-based storage)
+- Multi-user support (personal tool only)
+- Authentication/user management
+- Cloud storage for generated images
+
+**Rationale:** MVP focuses on core functionality (model switching + presets). Advanced features can be added post-MVP based on usage patterns and needs.
