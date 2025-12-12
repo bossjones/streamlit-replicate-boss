@@ -1,0 +1,59 @@
+# generated: 2025-12-11 20:09
+# project: streamlit-replicate-boss
+# project_key: streamlit-replicate-boss
+# tracking_system: file-system
+# story_location: {project-root}/docs/stories
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic exists in epic file but not contexted
+#   - contexted: Epic tech context created (required before drafting stories)
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - drafted: Story file created in stories folder
+#   - ready-for-dev: Draft approved and story context created
+#   - in-progress: Developer actively working on implementation
+#   - review: Under SM review (via code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - completed: Retrospective has been done
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epics should be 'contexted' before stories can be 'drafted'
+# - Stories can be worked in parallel if team capacity allows
+# - SM typically drafts next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', SM reviews, then Dev moves to 'done'
+
+generated: "2025-12-11 20:09"
+project: "streamlit-replicate-boss"
+project_key: "streamlit-replicate-boss"
+tracking_system: "file-system"
+story_location: "{project-root}/docs/stories"
+
+development_status:
+  # Epic 1: Multi-Model Foundation & Configuration
+  epic-1: backlog
+  1-1-create-model-configuration-file-structure: done
+  1-2-load-and-validate-model-configuration: backlog
+  1-3-initialize-session-state-for-model-management: backlog
+  1-4-create-model-selector-ui-component: backlog
+  1-5-implement-basic-model-switching: backlog
+  1-6-integrate-selected-model-endpoint-with-api-calls: backlog
+  1-7-handle-configuration-errors-and-edge-cases: backlog
+  epic-1-retrospective: optional
+
+  # Epic 2: Preset System & Enhanced Model Switching
+  epic-2: backlog
+  2-1-create-preset-configuration-file-structure: backlog
+  2-2-load-and-store-preset-configurations: backlog
+  2-3-display-model-information-in-sidebar: backlog
+  2-4-auto-apply-preset-on-model-selection: backlog
+  2-5-allow-manual-override-of-preset-values: backlog
+  2-6-implement-backward-compatibility-with-existing-configuration: backlog
+  2-7-enhanced-ui-updates-for-model-switching: backlog
+  epic-2-retrospective: optional

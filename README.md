@@ -52,6 +52,45 @@ Powered by cutting-edge AI models running on [Replicate](https://replicate.com/a
    REPLICATE_API_TOKEN = "paste-your-replicate-api-token-here"
    ```
 
+## Model Configuration
+
+The application supports multiple AI image generation models configured via `models.yaml` in the project root.
+
+### Adding Models
+
+To add a new model, edit `models.yaml` and add a new entry to the `models` array:
+
+```yaml
+models:
+  - id: "your-model-id"           # Required: Unique identifier
+    name: "Your Model Name"        # Required: Display name
+    endpoint: "owner/model:version"  # Required: Replicate API endpoint
+    trigger_words: []              # Optional: Model-specific trigger words
+    default_settings: {}           # Optional: Default parameter values
+```
+
+**Required Fields:**
+- `id`: Unique string identifier (e.g., "sdxl", "helldiver")
+- `name`: Display name shown in the UI
+- `endpoint`: Replicate API endpoint in format `owner/model:version`
+
+**Optional Fields:**
+- `trigger_words`: String or array of trigger words to prepend/append to prompts
+- `default_settings`: Object with default parameter values (width, height, etc.)
+
+**Example:**
+```yaml
+- id: "custom-model"
+  name: "My Custom Model"
+  endpoint: "username/model-name:version-hash"
+  trigger_words: ["custom", "style"]
+  default_settings:
+    width: 1024
+    height: 1024
+```
+
+See `models.yaml` for the current model configuration and schema documentation.
+
 ## Usage
 
 1. Run the Streamlit app:

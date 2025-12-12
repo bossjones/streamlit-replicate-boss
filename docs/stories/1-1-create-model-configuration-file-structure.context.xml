@@ -1,0 +1,133 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.1</storyId>
+    <title>Create Model Configuration File Structure</title>
+    <status>drafted</status>
+    <generatedAt>2025-12-12T01:21:36Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-1-create-model-configuration-file-structure.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>a standardized configuration file format for defining multiple models</iWant>
+    <soThat>models can be easily added and managed without code changes</soThat>
+    <tasks>
+      <task id="1" ac="1,2">Create models.yaml file structure
+        <subtask>Create `models.yaml` file in project root directory</subtask>
+        <subtask>Define YAML structure with `models` array as root element</subtask>
+        <subtask>Define schema documentation in file comments or separate README section</subtask>
+        <subtask>Ensure YAML syntax is valid and follows standard YAML 1.2 specification</subtask>
+        <subtask>Testing: Verify YAML file parses without errors using Python yaml library</subtask>
+      </task>
+      <task id="2" ac="2">Define model schema with required and optional fields
+        <subtask>Define required fields: `id` (string, unique identifier), `name` (string, display name), `endpoint` (string, Replicate API endpoint)</subtask>
+        <subtask>Define optional fields: `trigger_words` (string or array, model-specific trigger words), `default_settings` (object, default parameter values)</subtask>
+        <subtask>Document field types and constraints in comments</subtask>
+        <subtask>Testing: Validate schema structure matches requirements</subtask>
+      </task>
+      <task id="3" ac="3">Add initial model configurations
+        <subtask>Add Stability AI SDXL model entry with endpoint from existing secrets.toml configuration</subtask>
+        <subtask>Add helldiver model entry with appropriate endpoint</subtask>
+        <subtask>Add starship-trooper model entry with appropriate endpoint</subtask>
+        <subtask>Ensure each model has unique `id` value</subtask>
+        <subtask>Testing: Verify all 3 models are present and have required fields</subtask>
+      </task>
+      <task id="4" ac="4">Validate YAML structure and schema compliance
+        <subtask>Verify YAML file is syntactically valid (no parse errors)</subtask>
+        <subtask>Verify all models have required fields (id, name, endpoint)</subtask>
+        <subtask>Verify optional fields use correct data types if present</subtask>
+        <subtask>Testing: Create validation script or manual check to ensure schema compliance</subtask>
+      </task>
+      <task id="5" ac="5">Document configuration format
+        <subtask>Add inline comments in models.yaml explaining schema structure</subtask>
+        <subtask>OR create/update README.md with configuration format documentation</subtask>
+        <subtask>Include examples of model entries</subtask>
+        <subtask>Document how to add new models following the schema</subtask>
+        <subtask>Testing: Verify documentation is clear and complete</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Create `models.yaml` file in project root with YAML structure</criterion>
+    <criterion id="2">Define schema: `models` array with items containing `id`, `name`, `endpoint`, `trigger_words` (optional), `default_settings` (optional)</criterion>
+    <criterion id="3">Include at least 3 models: Stability AI SDXL (existing), helldiver, starship-trooper</criterion>
+    <criterion id="4">File structure is valid YAML and follows defined schema</criterion>
+    <criterion id="5">Document configuration format in comments or README</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 1.1">
+        Story 1.1 defines the requirements for creating a standardized YAML configuration file format. Acceptance criteria specify creating models.yaml in project root with schema definition, including at least 3 models, and documentation.
+      </doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Model Management &amp; Configuration">
+        FR002 requires file-based model configuration storage (YAML or JSON) loaded at application startup. FR003 specifies model configuration must include unique identifier, display name, Replicate endpoint URL, optional trigger words, and default parameter settings.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Documentation" section="Data Architecture">
+        Current architecture uses Streamlit session state for client-side data persistence. File-based configuration aligns with MVP scope and simplifies deployment. YAML format chosen for human-readability.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Documentation" section="API Design">
+        Current Replicate API integration uses hardcoded endpoint from secrets.toml. Model endpoint is stored as REPLICATE_MODEL_ENDPOINTSTABILITY in .streamlit/secrets.toml. API call pattern uses replicate.run() with model endpoint and input parameters.
+      </doc>
+      <doc path="docs/source-tree-analysis.md" title="Source Tree Analysis" section="Configuration Files">
+        Configuration files are centralized in .streamlit/ directory. Project root contains pyproject.toml for Python project metadata. File organization pattern shows configuration in .streamlit/ and project root for build configs.
+      </doc>
+      <doc path="README.md" title="README" section="Getting Started">
+        Current setup instructions reference .streamlit/example_secrets.toml for API token configuration. No mention of models.yaml yet, but README can be updated to document the new configuration format.
+      </doc>
+    </docs>
+    <code>
+      <artifact path="streamlit_app.py" kind="application" symbol="REPLICATE_MODEL_ENDPOINTSTABILITY" lines="17-18" reason="Current hardcoded model endpoint configuration. New models.yaml will replace this pattern.">
+        Current implementation loads model endpoint from secrets.toml: `REPLICATE_MODEL_ENDPOINTSTABILITY = st.secrets["REPLICATE_MODEL_ENDPOINTSTABILITY"]`
+      </artifact>
+      <artifact path=".streamlit/secrets.toml" kind="configuration" symbol="REPLICATE_MODEL_ENDPOINTSTABILITY" lines="2" reason="Existing single-model configuration. Story 1.1 creates models.yaml that will eventually replace or complement this approach.">
+        Current endpoint: `iamprofessorex/firebeardjones:31475d69fd69d85fb66041d76f01076783fe7f03a7cdea7d1174b41b20c17a23`
+      </artifact>
+      <artifact path="pyproject.toml" kind="manifest" symbol="dependencies" lines="7-13" reason="Python project dependencies. Note: PyYAML not yet listed but will be needed in Story 1.2 for parsing models.yaml.">
+        Current dependencies: replicate, requests, streamlit, streamlit-image-select, watchdog. No YAML library yet.
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="python">
+        <package name="replicate" version=">=1.0.7"/>
+        <package name="requests" version=">=2.32.5"/>
+        <package name="streamlit" version=">=1.50.0"/>
+        <package name="streamlit-image-select" version=">=0.6.0"/>
+        <package name="watchdog" version=">=6.0.0"/>
+        <note>PyYAML will be needed in Story 1.2 for parsing models.yaml, but not required for Story 1.1 (file creation only)</note>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="file-location">models.yaml must be created at project root level, not in .streamlit/ or docs/ directories, to maintain clear separation between runtime configuration and application configuration</constraint>
+    <constraint type="schema-design">Schema must support current requirements (id, name, endpoint) while allowing extensibility for future features (trigger_words, default_settings). Optional fields enable progressive enhancement.</constraint>
+    <constraint type="backward-compatibility">Schema design should anticipate Epic 2's backward compatibility requirements (FR020) where existing secrets.toml configuration may need to coexist</constraint>
+    <constraint type="no-code-changes">This story focuses solely on configuration file creation. No Python code modifications are needed. Future stories (1.2+) will implement loading and validation logic</constraint>
+    <constraint type="yaml-format">YAML file must be valid YAML 1.2 specification and human-readable for easy editing</constraint>
+    <constraint type="documentation">Configuration format must be documented either inline in models.yaml comments or in README.md with examples</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="models.yaml schema" kind="configuration schema" signature="models: array of {id: string, name: string, endpoint: string, trigger_words?: string|array, default_settings?: object}" path="models.yaml"/>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Current project has no formal test suite detected. Manual testing via Streamlit UI is the current approach. For Story 1.1, testing should focus on YAML file validation: syntax correctness, schema compliance, and documentation completeness. Testing can be done via Python yaml library parsing and manual review.
+    </standards>
+    <locations>
+      No existing test directory structure found. Tests for this story can be manual validation or simple Python script to parse and validate YAML structure.
+    </locations>
+    <ideas>
+      <test ac="1">Verify models.yaml file exists at project root and is valid YAML syntax</test>
+      <test ac="2">Validate schema structure: models array exists, each model has required fields (id, name, endpoint), optional fields use correct types</test>
+      <test ac="3">Verify all 3 models (Stability AI SDXL, helldiver, starship-trooper) are present with unique IDs</test>
+      <test ac="4">Parse YAML file using Python yaml library to ensure no syntax errors, verify schema compliance programmatically</test>
+      <test ac="5">Review documentation (inline comments or README section) for clarity and completeness, verify examples are present</test>
+    </ideas>
+  </tests>
+</story-context>
