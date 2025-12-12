@@ -86,7 +86,19 @@ The functional requirements have the following critical dependency chain for imp
 
 ### Non-Functional Requirements
 
-{{non_functional_requirements}}
+**Performance Requirements:**
+
+- NFR001: Model switching must complete in less than 1 second without page reload or visible UI blocking
+- NFR002: Configuration file loading at application startup must complete in less than 500ms, even with 10+ model definitions
+
+**Reliability Requirements:**
+
+- NFR003: The system must maintain data integrity during model switching, preserving all user-entered data (prompt, settings) without loss or corruption
+- NFR004: The system must handle API failures gracefully, providing clear error messages to the user without crashing or losing application state
+
+**Usability Requirements:**
+
+- NFR005: The system must maintain workflow continuity, allowing users to switch models and continue creative work without external navigation or context re-establishment
 
 ---
 
