@@ -31,13 +31,19 @@ models:
   # Helldiver - Custom trained model for tactical armor themes
   - id: "helldiver"
     name: "Helldiver Tactical Armor"
-    endpoint: "iamprofessorex/helldiver:latest"  # Placeholder - update with actual endpoint
-    # trigger_words: ["helldiver", "tactical armor"]  # Optional: Model-specific trigger words
+    endpoint: "iamprofessorex/helldiver-b01-tactical-armor:bff8bbc841029e2570ef4f097a1efff6327f51e4ea9633b0c2660d97ee1c6f5f"  # Placeholder - update with actual endpoint
+    trigger_words: ["HELLDIVERB01TACTICALARMOR"]  # Optional: Model-specific trigger words
     # default_settings: {}  # Optional: Model-specific default settings
 
   # Starship Trooper - Custom trained model for uniform themes
   - id: "starship-trooper"
     name: "Starship Trooper Uniform"
-    endpoint: "iamprofessorex/starship-trooper:latest"  # Placeholder - update with actual endpoint
-    # trigger_words: ["starship trooper", "uniform"]  # Optional: Model-specific trigger words
+    endpoint: "iamprofessorex/starship-trooper-uniform-with-helmet:3ab1ea8d4eb6e0acaecfbfd9c23cd161ef9420627a502a884d7d3fe765e1a36b"  # Placeholder - update with actual endpoint
+    trigger_words: ["STARSHIPTROOPERUNIFORMWITHHELMET"]  # Optional: Model-specific trigger words
+    # default_settings: {}  # Optional: Model-specific default settings
+
+  - id: "firebeardjones"
+    name: "Firebeard Jones"
+    endpoint: "iamprofessorex/firebeardjones:31475d69fd69d85fb66041d76f01076783fe7f03a7cdea7d1174b41b20c17a23"  # Placeholder - update with actual endpoint
+    trigger_words: ["FIREBEARDJONES"]  # Optional: Model-specific trigger words
     # default_settings: {}  # Optional: Model-specific default settings
