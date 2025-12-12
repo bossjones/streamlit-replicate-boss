@@ -104,19 +104,115 @@ The functional requirements have the following critical dependency chain for imp
 
 ## User Journeys
 
-{{user_journeys}}
+### Primary Use Case: Multi-Model Creative Workflow
+
+**User:** bossjones (Creative professional using AI image generation)
+
+**Goal:** Generate images using multiple custom models without leaving the application
+
+**Journey Steps:**
+
+1. **Application Launch**
+   - User opens the Streamlit application
+   - System loads model configurations and displays default model (e.g., Stability AI SDXL)
+   - Model selector appears in sidebar with all available models
+
+2. **Initial Model Selection**
+   - User selects "helldiver tactical armor" from model dropdown
+   - System instantly switches to selected model (<1 second)
+   - Preset automatically loads: trigger words injected into prompt field, optimal settings applied
+   - UI updates to show model-specific information (trigger words visible in sidebar)
+
+3. **First Image Generation**
+   - User reviews auto-populated prompt (with trigger words)
+   - User adjusts prompt text and settings as needed
+   - User clicks "Generate Image"
+   - System uses helldiver model endpoint for API call
+   - Generated image displays in main area
+
+4. **Model Switch (Core Value)**
+   - User wants to try different style, selects "starship trooper uniform" from dropdown
+   - System instantly switches (<1 second, no page reload)
+   - Current prompt text and settings are preserved
+   - New preset auto-loads: starship trooper trigger words injected, settings updated
+   - UI updates to reflect new model
+
+5. **Continued Creative Work**
+   - User adjusts prompt for starship trooper context
+   - Generates image with new model
+   - User switches to third model (firebeardjones) seamlessly
+   - Creative workflow continues uninterrupted
+
+6. **Session Completion**
+   - User has generated images with multiple models
+   - All work completed within single application session
+   - No external navigation or context switching required
+
+**Success Criteria:**
+- ✅ Zero external navigation during creative session
+- ✅ Model switching completes in <1 second
+- ✅ All prompts and settings preserved across switches
+- ✅ Presets auto-apply correctly for each model
+- ✅ Workflow continuity maintained throughout session
 
 ---
 
 ## UX Design Principles
 
-{{ux_principles}}
+1. **Workflow Continuity First** - Eliminate context switching and maintain creative flow. All model-related actions should happen within the application without external navigation.
+
+2. **Progressive Disclosure** - Present information in order of frequency and importance: Model selection → Preset → Prompt → Settings. Hide advanced options until needed.
+
+3. **Context Preservation** - Always show active model configuration (model name, trigger words, preset) alongside prompt input so users understand what they're working with.
+
+4. **Instant Feedback** - Model switching and preset application should provide immediate visual feedback (<1 second) with clear indication of what changed.
 
 ---
 
 ## User Interface Design Goals
 
-{{ui_design_goals}}
+### Platform & Screens
+
+**Platform:** Web application (Streamlit) - Desktop and tablet browsers
+
+**Core Screen Structure:**
+- **Sidebar (Left):** Model selection, preset management, prompt inputs, generation controls, settings
+- **Main Area (Right):** Generated images display, gallery for inspiration
+
+### Information Architecture
+
+**Sidebar Hierarchy (Top to Bottom):**
+
+1. **Model Selection Section** (Top Priority - Always Visible)
+   - Model selector dropdown (prominent placement)
+   - Model information display (trigger words, description) - visible when model selected
+   - Preset selector (if multiple presets available per model)
+
+2. **Generation Controls** (Primary Actions)
+   - Prompt input field (with auto-injected trigger words visible/editable)
+   - Negative prompt input
+   - Submit/Generate button (primary action)
+
+3. **Settings Section** (Secondary - Collapsible)
+   - Basic settings (width, height, num_outputs) - always visible
+   - Advanced settings (scheduler, inference steps, guidance scale, etc.) - in expander
+
+4. **Resources** (Tertiary - Bottom)
+   - Model links and credits
+
+### Key Interaction Patterns
+
+- **Model Switching:** Dropdown selection → instant UI update → preset auto-applies → prompt updates with trigger words
+- **Preset Application:** Automatic on model selection, with manual override capability
+- **State Preservation:** All user inputs (prompt, settings) preserved during model switches
+- **Visual Feedback:** Clear indication of active model, applied preset, and any auto-injected trigger words
+
+### Design Constraints
+
+- **Streamlit Framework Limitations:** Must work within Streamlit's component library and layout constraints
+- **Browser Support:** Modern browsers (Chrome, Firefox, Safari, Edge) - latest 2 versions
+- **No Custom CSS/JS:** Rely on Streamlit's native styling and components
+- **Responsive Design:** Sidebar collapses on mobile, but primary use case is desktop/tablet
 
 ---
 
