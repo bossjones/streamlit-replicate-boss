@@ -139,17 +139,21 @@ When switching models:
 ### Core Dependencies (Existing)
 
 - **Python:** 3.13 (specified in `.python-version` and `pyproject.toml`)
-- **Streamlit:** 1.50.0+ (UI framework)
+- **Streamlit:** 1.50.0+ (UI framework, includes `streamlit.testing.v1.AppTest` for testing)
 - **Replicate:** 1.0.7+ (API client for model inference)
 - **PyYAML:** 6.0.1 (YAML parsing - needs to be added to dependencies)
 - **Requests:** 2.32.5+ (HTTP requests for image downloads)
+- **pytest:** 8.0.0+ (Test runner - needs to be added to dependencies)
 
 ### New Dependencies to Add
 
 ```toml
 # Add to pyproject.toml dependencies:
 "pyyaml>=6.0.1",  # For parsing models.yaml and presets.yaml
+"pytest>=8.0.0",  # For running automated tests
 ```
+
+**Note:** Streamlit's testing framework (`streamlit.testing.v1.AppTest`) is included with Streamlit 1.50.0+, no additional dependency needed.
 
 ### Configuration File Format
 
@@ -357,9 +361,10 @@ output = replicate.run(
 
 ### Setup Steps
 
-1. **Install new dependency:**
+1. **Install new dependencies:**
    ```bash
    uv add pyyaml>=6.0.1
+   uv add pytest>=8.0.0
    ```
 
 2. **Create config module:**
@@ -436,7 +441,279 @@ utils/
 
 ### Testing Strategy
 
-**Manual Testing Checklist:**
+**Testing Approach:**
+- **Automated Testing:** Use Streamlit's AppTest framework for integration tests
+- **Unit Testing:** Use pytest for config and preset module tests
+- **Manual Testing:** Supplement automated tests with manual verification
+
+**See "Testing Approach" section below for detailed test implementation.**
+
+---
+
+## Testing Approach
+
+### Testing Framework: Streamlit AppTest
+
+**Framework:** Streamlit's built-in testing framework (`streamlit.testing.v1.AppTest`) - included with Streamlit 1.50.0+
+
+**Reference:** [Streamlit App Testing Documentation](https://docs.streamlit.io/develop/api-reference/app-testing)
+
+**Test Runner:** pytest 8.0.0+
+
+### Test Structure
+
+**Test Directory:**
+```
+streamlit-replicate-boss/
+├── tests/
+│   ├── __init__.py
+│   ├── test_model_loader.py          # Unit tests for config loading
+│   ├── test_preset_manager.py        # Unit tests for preset management
+│   ├── test_streamlit_app.py         # Integration tests using AppTest
+│   └── fixtures/
+│       ├── models.yaml               # Test fixture: valid models config
+│       ├── models_invalid.yaml       # Test fixture: invalid config
+│       └── presets.yaml              # Test fixture: valid presets config
+```
+
+### Unit Testing (Config and Preset Modules)
+
+**Test File:** `tests/test_model_loader.py`
+
+**Test Cases:**
+```python
+import pytest
+from config.model_loader import load_models_config, validate_model_config
+
+def test_load_valid_models_yaml():
+    """Test loading valid models.yaml file"""
+    models = load_models_config("tests/fixtures/models.yaml")
+    assert len(models) >= 3
+    assert models[0]['id'] == 'sdxl'
+    assert models[0]['name'] == 'Stability AI SDXL'
+    assert 'endpoint' in models[0]
+
+def test_load_missing_file():
+    """Test handling missing models.yaml"""
+    models = load_models_config("nonexistent.yaml")
+    assert models == []  # Should return empty list, not crash
+
+def test_validate_model_config_valid():
+    """Test validation of valid model config"""
+    model = {'id': 'test', 'name': 'Test Model', 'endpoint': 'owner/model:version'}
+    assert validate_model_config(model) == True
+
+def test_validate_model_config_missing_fields():
+    """Test validation catches missing required fields"""
+    model = {'id': 'test'}  # Missing name and endpoint
+    with pytest.raises(ValueError, match="required field"):
+        validate_model_config(model)
+```
+
+**Test File:** `tests/test_preset_manager.py`
+
+**Test Cases:**
+```python
+import pytest
+from utils.preset_manager import load_presets_config, apply_preset
+
+def test_load_valid_presets_yaml():
+    """Test loading valid presets.yaml file"""
+    presets = load_presets_config("tests/fixtures/presets.yaml")
+    assert 'sdxl' in presets
+    assert len(presets['sdxl']) >= 1
+
+def test_apply_preset_trigger_words():
+    """Test preset application injects trigger words"""
+    preset = {
+        'trigger_words': ['HELLDIVERB01TACTICALARMOR'],
+        'settings': {'width': 1024, 'height': 1024}
+    }
+    prompt, settings = apply_preset('helldiver', preset, "test prompt", {})
+    assert 'HELLDIVERB01TACTICALARMOR' in prompt
+    assert settings['width'] == 1024
+```
+
+### Integration Testing with AppTest
+
+**Test File:** `tests/test_streamlit_app.py`
+
+**Framework Usage:** Use `AppTest.from_file()` to test the full Streamlit application
+
+**Test Cases:**
+
+```python
+import pytest
+from streamlit.testing.v1 import AppTest
+
+def test_app_loads_with_models_config():
+    """Test application loads successfully with models.yaml"""
+    at = AppTest.from_file("streamlit_app.py")
+    at.secrets["REPLICATE_API_TOKEN"] = "test_token"
+    at.secrets["REPLICATE_MODEL_ENDPOINTSTABILITY"] = "test/endpoint:version"
+    at.run()
+    assert not at.exception
+    # Verify model selector appears
+    assert len(at.selectbox) > 0
+
+def test_model_selector_displays_models():
+    """Test model selector shows all configured models"""
+    at = AppTest.from_file("streamlit_app.py")
+    at.secrets["REPLICATE_API_TOKEN"] = "test_token"
+    at.run()
+    assert not at.exception
+    # Find model selector in sidebar
+    sidebar = at.sidebar
+    model_selector = sidebar.selectbox[0]
+    assert len(model_selector.options) >= 3  # At least 3 models
+
+def test_model_switching_preserves_state():
+    """Test model switching preserves prompt and settings"""
+    at = AppTest.from_file("streamlit_app.py")
+    at.secrets["REPLICATE_API_TOKEN"] = "test_token"
+    at.run()
+    assert not at.exception
+    
+    # Set initial prompt and settings
+    sidebar = at.sidebar
+    prompt_input = sidebar.text_area[0]
+    prompt_input.input("test prompt").run()
+    
+    # Switch model
+    model_selector = sidebar.selectbox[0]
+    model_selector.select("Helldiver Tactical Armor").run()
+    
+    # Verify prompt preserved
+    assert "test prompt" in prompt_input.value
+
+def test_preset_auto_applies_on_model_selection():
+    """Test preset auto-applies when model is selected (Epic 2)"""
+    at = AppTest.from_file("streamlit_app.py")
+    at.secrets["REPLICATE_API_TOKEN"] = "test_token"
+    at.run()
+    assert not at.exception
+    
+    # Select model with preset
+    sidebar = at.sidebar
+    model_selector = sidebar.selectbox[0]
+    model_selector.select("Helldiver Tactical Armor").run()
+    
+    # Verify trigger words injected
+    prompt_input = sidebar.text_area[0]
+    assert "HELLDIVERB01TACTICALARMOR" in prompt_input.value
+
+def test_error_handling_missing_models_yaml():
+    """Test graceful handling when models.yaml is missing"""
+    at = AppTest.from_file("streamlit_app.py")
+    at.secrets["REPLICATE_API_TOKEN"] = "test_token"
+    at.secrets["REPLICATE_MODEL_ENDPOINTSTABILITY"] = "test/endpoint:version"
+    # Simulate missing models.yaml by mocking file system
+    at.run()
+    # Should not crash, should show warning or use fallback
+    assert not at.exception or len(at.warning) > 0
+
+def test_backward_compatibility_with_secrets():
+    """Test backward compatibility with secrets.toml only"""
+    at = AppTest.from_file("streamlit_app.py")
+    at.secrets["REPLICATE_API_TOKEN"] = "test_token"
+    at.secrets["REPLICATE_MODEL_ENDPOINTSTABILITY"] = "test/endpoint:version"
+    at.run()
+    assert not at.exception
+    # App should work with just secrets, no models.yaml needed
+```
+
+### Running Tests
+
+**Command:**
+```bash
+# Run all tests
+uv run pytest tests/
+
+# Run specific test file
+uv run pytest tests/test_streamlit_app.py
+
+# Run with verbose output
+uv run pytest tests/ -v
+
+# Run with coverage (if pytest-cov installed)
+uv run pytest tests/ --cov=config --cov=utils
+```
+
+### Test Fixtures
+
+**Test Fixture:** `tests/fixtures/models.yaml`
+```yaml
+models:
+  - id: "sdxl"
+    name: "Stability AI SDXL"
+    endpoint: "stability-ai/sdxl:test-version"
+  - id: "helldiver"
+    name: "Helldiver Tactical Armor"
+    endpoint: "test/helldiver:version"
+    trigger_words: ["HELLDIVERB01TACTICALARMOR"]
+  - id: "starship-trooper"
+    name: "Starship Trooper Uniform"
+    endpoint: "test/starship:version"
+    trigger_words: ["STARSHIPTROOPERUNIFORMWITHHELMET"]
+```
+
+**Test Fixture:** `tests/fixtures/presets.yaml`
+```yaml
+presets:
+  - id: "default"
+    name: "Default SDXL"
+    model_id: "sdxl"
+    trigger_words: []
+    settings:
+      width: 1024
+      height: 1024
+  - id: "helldiver-default"
+    name: "Helldiver Default"
+    model_id: "helldiver"
+    trigger_words: ["HELLDIVERB01TACTICALARMOR"]
+    settings:
+      width: 1024
+      height: 1024
+```
+
+### Performance Testing
+
+**Performance Requirements (from PRD):**
+- NFR001: Model switching <1 second ✅ (Achieved via session state)
+- NFR002: Config loading <500ms ✅ (Achieved via efficient YAML parsing)
+
+**Performance Test Example:**
+```python
+import time
+from streamlit.testing.v1 import AppTest
+
+def test_config_loading_performance():
+    """Test config loading completes in <500ms (NFR002)"""
+    start = time.time()
+    at = AppTest.from_file("streamlit_app.py")
+    at.secrets["REPLICATE_API_TOKEN"] = "test_token"
+    at.run()
+    load_time = time.time() - start
+    assert load_time < 0.5, f"Config loading took {load_time}s, exceeds 500ms limit"
+
+def test_model_switching_performance():
+    """Test model switching completes in <1 second (NFR001)"""
+    at = AppTest.from_file("streamlit_app.py")
+    at.secrets["REPLICATE_API_TOKEN"] = "test_token"
+    at.run()
+    
+    sidebar = at.sidebar
+    model_selector = sidebar.selectbox[0]
+    
+    start = time.time()
+    model_selector.select("Helldiver Tactical Armor").run()
+    switch_time = time.time() - start
+    assert switch_time < 1.0, f"Model switching took {switch_time}s, exceeds 1s limit"
+```
+
+### Manual Testing Checklist (Supplement to Automated Tests)
+
+**Manual Testing Scenarios:**
 1. Application starts with models.yaml loaded
 2. Model selector displays all models
 3. Model switching works instantly
@@ -452,43 +729,6 @@ utils/
 - Error scenarios: Missing models.yaml, invalid YAML, missing required fields
 - Edge cases: Empty models list, rapid model switching, API failures
 - Backward compatibility: No models.yaml, only secrets.toml
-
----
-
-## Testing Approach
-
-### Unit Testing (Recommended but not required for MVP)
-
-**Test Files to Create:**
-- `tests/test_model_loader.py` - Test configuration loading and validation
-- `tests/test_preset_manager.py` - Test preset loading and application
-
-**Test Cases:**
-- Valid models.yaml loads correctly
-- Invalid YAML raises appropriate error
-- Missing required fields raises validation error
-- Preset application merges correctly with user input
-- Backward compatibility fallback works
-
-### Integration Testing
-
-**Manual Integration Tests:**
-1. Start application → Verify models load
-2. Select model → Verify UI updates
-3. Generate image → Verify correct endpoint used
-4. Switch model → Verify state preservation
-5. Apply preset → Verify trigger words injected (Epic 2)
-
-### Performance Testing
-
-**Performance Requirements (from PRD):**
-- NFR001: Model switching <1 second ✅ (Achieved via session state)
-- NFR002: Config loading <500ms ✅ (Achieved via efficient YAML parsing)
-
-**Validation:**
-- Measure config load time (should be <500ms)
-- Measure model switch time (should be <1 second, no API calls)
-- Profile YAML parsing if performance issues arise
 
 ---
 
@@ -579,6 +819,23 @@ utils/
 - Manual preset selection: More steps, less seamless
 - No presets: Doesn't meet PRD requirements
 - Preset templates: Future enhancement, not MVP
+
+### Decision: Streamlit AppTest for Testing
+
+**Rationale:**
+- Built-in to Streamlit 1.50.0+ (no additional dependencies)
+- Headless testing without browser automation
+- Direct access to app state and UI elements
+- Can simulate user interactions (selectbox, text input, etc.)
+- Integrates with pytest for test organization
+- Official Streamlit testing framework with active maintenance
+
+**Reference:** [Streamlit App Testing Documentation](https://docs.streamlit.io/develop/api-reference/app-testing)
+
+**Alternatives Considered:**
+- Selenium/Playwright: Browser automation, more complex setup, slower execution
+- Manual testing only: No automated regression testing, time-consuming
+- Unit tests only: Doesn't test Streamlit UI interactions and state management
 
 ---
 
