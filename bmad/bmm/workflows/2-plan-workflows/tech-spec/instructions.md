@@ -1,4 +1,4 @@
-# PRD Workflow - Small Projects (Level 0-1)
+# Tech-Spec Workflow - Level 0-2 Projects
 
 <workflow>
 
@@ -6,10 +6,12 @@
 <critical>You MUST have already loaded and processed: {installed_path}/workflow.yaml</critical>
 <critical>Communicate all responses in {communication_language} and language MUST be tailored to {user_skill_level}</critical>
 <critical>Generate all documents in {document_output_language}</critical>
-<critical>This is the SMALL instruction set for Level 0-1 projects - tech-spec with story generation</critical>
-<critical>Level 0: tech-spec + single user story | Level 1: tech-spec + epic/stories</critical>
-<critical>Project analysis already completed - proceeding directly to technical specification</critical>
-<critical>NO PRD generated - uses tech_spec_template + story templates</critical>
+<critical>This workflow handles Level 0-2 projects - tech-spec with story generation</critical>
+<critical>Level 0: tech-spec + single user story | Level 1: tech-spec + epic/stories | Level 2: tech-spec after PRD (technical implementation details)</critical>
+<critical>For Level 0-1: Project analysis already completed - proceeding directly to technical specification</critical>
+<critical>For Level 2: PRD must be completed first - tech-spec provides technical implementation details for PRD requirements</critical>
+<critical>Level 0-1: NO PRD generated - uses tech_spec_template + story templates</critical>
+<critical>Level 2: PRD already exists - tech-spec provides technical details for PRD requirements</critical>
 
 <critical>DOCUMENT OUTPUT: Technical, precise, definitive. Specific versions only. User skill level ({user_skill_level}) affects conversation style ONLY, not document content.</critical>
 
@@ -35,15 +37,23 @@
   <action>Get project_level from YAML metadata</action>
   <action>Find first non-completed workflow (next expected workflow)</action>
 
-  <check if="project_level >= 2">
+  <check if="project_level >= 2 AND prd status is not file path (PRD not completed)">
     <output>**Incorrect Workflow for Level {{project_level}}**
 
-Tech-spec is for Level 0-1 projects. Level 2-4 should use PRD workflow.
+Tech-spec is for Level 0-1 projects, OR Level 2+ projects AFTER PRD is completed.
+
+For Level 2-4 projects, PRD must be completed first.
 
 **Correct workflow:** `prd` (PM agent)
 </output>
 <action>Exit and redirect to prd</action>
 </check>
+
+  <check if="project_level >= 2 AND prd status is file path (PRD completed)">
+    <action>Confirm Level 2 - Tech-spec after PRD (lightweight solutioning)</action>
+    <action>PRD already completed: {{prd status}}</action>
+    <action>Proceeding with tech-spec for technical planning</action>
+  </check>
 
   <check if="tech-spec status is file path (already completed)">
     <output>⚠️ Tech-spec already completed: {{tech-spec status}}</output>
@@ -79,6 +89,9 @@ Tech-spec is for Level 0-1 projects. Level 2-4 should use PRD workflow.
 <check if="project_level == 1">
 <action>Set to: "tech-spec (Level 1 - generating tech spec)"</action>
 </check>
+<check if="project_level == 2">
+<action>Set to: "tech-spec (Level 2 - generating tech spec after PRD)"</action>
+</check>
 
 <template-output file="{{status_file_path}}">progress_percentage</template-output>
 <action>Set to: 20%</action>
@@ -93,6 +106,12 @@ Tech-spec is for Level 0-1 projects. Level 2-4 should use PRD workflow.
 <check if="project_level == 1">
   <action>Confirm Level 1 - Coherent feature</action>
   <ask>Please describe the feature you need to implement:</ask>
+</check>
+
+<check if="project_level == 2">
+  <action>Confirm Level 2 - Technical specification after PRD</action>
+  <action>Load PRD from {{prd status}} to understand requirements</action>
+  <action>Tech-spec will provide technical implementation details based on PRD requirements</action>
 </check>
 
 </step>
@@ -185,6 +204,12 @@ Run cohesion validation? (y/n)</ask>
   <action>Stories link to tech-spec.md implementation tasks</action>
 </check>
 
+<check if="project_level == 2">
+  <action>Note: Level 2 projects already have epics.md from PRD workflow</action>
+  <action>Tech-spec provides technical implementation details for PRD requirements</action>
+  <action>Stories in epics.md will reference tech-spec.md for technical details</action>
+</check>
+
 </step>
 
 <step n="5" goal="Finalize and determine next steps">
@@ -199,6 +224,11 @@ Run cohesion validation? (y/n)</ask>
   <action>Confirm epics.md generated successfully</action>
 </check>
 
+<check if="project_level == 2">
+  <action>Confirm tech-spec.md provides technical details for PRD requirements</action>
+  <action>Epics.md already exists from PRD workflow</action>
+</check>
+
 ## Summary
 
 <check if="project_level == 0">
@@ -211,6 +241,12 @@ Run cohesion validation? (y/n)</ask>
 - **Level 1 Output**: tech-spec.md + epics.md
 - **No PRD required**
 - **Ready for sprint planning with epic/story breakdown**
+</check>
+
+<check if="project_level == 2">
+- **Level 2 Output**: tech-spec.md (technical implementation details)
+- **PRD and epics.md already exist from PRD workflow**
+- **Ready for sprint planning with complete technical specification**
 </check>
 
 ## Next Steps
@@ -238,6 +274,11 @@ Run cohesion validation? (y/n)</ask>
 <check if="project_level == 1">
 - ✅ tech-spec.md - Technical specification
 - ✅ epics.md - Epic and story breakdown
+</check>
+
+<check if="project_level == 2">
+- ✅ tech-spec.md - Technical specification (implementation details for PRD)
+- ℹ️ PRD.md and epics.md already exist from PRD workflow
 </check>
 
 **Next Steps:**
