@@ -143,15 +143,41 @@ When switching models:
 - **Replicate:** 1.0.7+ (API client for model inference)
 - **PyYAML:** 6.0.1 (YAML parsing - needs to be added to dependencies)
 - **Requests:** 2.32.5+ (HTTP requests for image downloads)
-- **pytest:** 8.0.0+ (Test runner - needs to be added to dependencies)
+
+**Development Dependencies (Testing):**
+- **pytest:** 8.0.0+ (Test runner - needs to be added as dev dependency)
+- **pytest-cov:** Latest (Code coverage reporting - needs to be added as dev dependency)
+- **pytest-skip-slow:** Latest (Skip slow tests with marker - needs to be added as dev dependency)
+- **pytest-skipuntil:** Latest (Skip tests until a specific date - needs to be added as dev dependency)
+- **pytest-recording:** Latest (Record and replay HTTP interactions - needs to be added as dev dependency)
+- **responses:** 0.25.0+ (HTTP request mocking for testing - needs to be added as dev dependency)
+- **requests-mock:** 1.12.0+ (Alternative HTTP request mocking - needs to be added as dev dependency)
 
 ### New Dependencies to Add
 
+**Production Dependencies:**
 ```toml
 # Add to pyproject.toml dependencies:
 "pyyaml>=6.0.1",  # For parsing models.yaml and presets.yaml
-"pytest>=8.0.0",  # For running automated tests
 ```
+
+**Development Dependencies (Testing):**
+```toml
+# Add to pyproject.toml [project.optional-dependencies] or use: uv add --dev <package>
+# Example structure in pyproject.toml:
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov",  # Code coverage reporting
+    "pytest-skip-slow",  # Skip slow tests with @pytest.mark.slow
+    "pytest-skipuntil",  # Skip tests until a specific date
+    "pytest-recording",  # Record and replay HTTP interactions
+    "responses>=0.25.0",
+    "requests-mock>=1.12.0",
+]
+```
+
+**Note:** Using `uv add --dev <package>` automatically adds packages to the appropriate dev dependencies section in pyproject.toml.
 
 **Note:** Streamlit's testing framework (`streamlit.testing.v1.AppTest`) is included with Streamlit 1.50.0+, no additional dependency needed.
 
@@ -361,24 +387,34 @@ output = replicate.run(
 
 ### Setup Steps
 
-1. **Install new dependencies:**
+1. **Install production dependencies:**
    ```bash
    uv add pyyaml>=6.0.1
-   uv add pytest>=8.0.0
    ```
 
-2. **Create config module:**
+2. **Install development dependencies (testing libraries):**
+   ```bash
+   uv add --dev pytest>=8.0.0
+   uv add --dev pytest-cov
+   uv add --dev pytest-skip-slow
+   uv add --dev pytest-skipuntil
+   uv add --dev pytest-recording
+   uv add --dev responses>=0.25.0
+   uv add --dev requests-mock>=1.12.0
+   ```
+
+3. **Create config module:**
    ```bash
    mkdir -p config
    touch config/__init__.py
    ```
 
-3. **Create preset manager module:**
+4. **Create preset manager module:**
    ```bash
    touch utils/preset_manager.py
    ```
 
-4. **Verify models.yaml exists:**
+5. **Verify models.yaml exists:**
    - Already created (Story 1.1)
    - Location: `{project-root}/models.yaml`
    - Contains at least 3 models: sdxl, helldiver, starship-trooper
@@ -452,13 +488,66 @@ utils/
 
 ## Testing Approach
 
-### Testing Framework: Streamlit AppTest
+### Testing Framework: Multi-Layer Testing Strategy
 
-**Framework:** Streamlit's built-in testing framework (`streamlit.testing.v1.AppTest`) - included with Streamlit 1.50.0+
+**Frameworks:**
+1. **Streamlit AppTest** - For UI and application flow testing (included with Streamlit 1.50.0+)
+2. **responses** - For mocking HTTP requests (Replicate API calls)
+3. **requests-mock** - Alternative HTTP mocking library (pytest fixture support)
 
-**Reference:** [Streamlit App Testing Documentation](https://docs.streamlit.io/develop/api-reference/app-testing)
+**References:**
+- [Streamlit App Testing Documentation](https://docs.streamlit.io/develop/api-reference/app-testing)
+- [responses Library Documentation](https://github.com/getsentry/responses)
+- [requests-mock Library Documentation](https://github.com/jamielennox/requests-mock)
 
 **Test Runner:** pytest 8.0.0+
+
+**Pytest Plugins:**
+- **pytest-cov:** Generate code coverage reports during test execution
+- **pytest-skip-slow:** Skip tests marked with `@pytest.mark.slow` (useful for CI/CD)
+- **pytest-skipuntil:** Skip tests until a specific date (useful for time-based test skipping)
+- **pytest-recording:** Record HTTP interactions and replay them in tests (complements responses/requests-mock)
+
+**Testing Strategy:**
+- **Unit Tests:** Test config/preset modules in isolation
+- **Integration Tests:** Test Streamlit app with AppTest
+- **API Mocking:** Use `responses` or `requests-mock` to mock Replicate API calls without making real HTTP requests
+- **Performance Tests:** Measure config loading and model switching performance
+- **Coverage Reports:** Use pytest-cov to track test coverage
+- **Test Organization:** Use pytest markers to categorize and skip tests as needed
+
+### Pytest Configuration
+
+**Optional:** Create `pytest.ini` or add to `pyproject.toml` for pytest configuration:
+
+```ini
+# pytest.ini
+[pytest]
+testpaths = tests
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+markers =
+    slow: marks tests as slow (deselect with '-m "not slow"')
+    integration: marks tests as integration tests
+    unit: marks tests as unit tests
+    api: marks tests as API integration tests
+```
+
+Or in `pyproject.toml`:
+```toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "api: marks tests as API integration tests",
+]
+```
 
 ### Test Structure
 
@@ -470,10 +559,12 @@ streamlit-replicate-boss/
 │   ├── test_model_loader.py          # Unit tests for config loading
 │   ├── test_preset_manager.py        # Unit tests for preset management
 │   ├── test_streamlit_app.py         # Integration tests using AppTest
+│   ├── test_api_integration.py       # API integration tests with mocked HTTP
 │   └── fixtures/
 │       ├── models.yaml               # Test fixture: valid models config
 │       ├── models_invalid.yaml       # Test fixture: invalid config
-│       └── presets.yaml              # Test fixture: valid presets config
+│       ├── presets.yaml              # Test fixture: valid presets config
+│       └── mock_api_responses.json   # Mock Replicate API responses
 ```
 
 ### Unit Testing (Config and Preset Modules)
@@ -534,11 +625,22 @@ def test_apply_preset_trigger_words():
     assert settings['width'] == 1024
 ```
 
-### Integration Testing with AppTest
+### Integration Testing with AppTest and API Mocking
 
 **Test File:** `tests/test_streamlit_app.py`
 
-**Framework Usage:** Use `AppTest.from_file()` to test the full Streamlit application
+**Framework Usage:** 
+- Use `AppTest.from_file()` to test the full Streamlit application
+- Use `responses` or `requests-mock` to mock Replicate API calls
+- Combine both to test end-to-end functionality without real API calls
+
+**API Mocking Strategy:**
+
+The application makes HTTP requests to Replicate API via the `replicate` library (which uses `requests` under the hood). To test API integration without making real calls:
+
+1. **Use `responses` library** - Intercepts `requests` library calls made by `replicate`
+2. **Use `requests-mock` library** - Alternative with pytest fixture support
+3. **Mock Replicate API responses** - Return mock image URLs and responses
 
 **Test Cases:**
 
@@ -620,7 +722,335 @@ def test_backward_compatibility_with_secrets():
     at.run()
     assert not at.exception
     # App should work with just secrets, no models.yaml needed
+
+def test_api_integration_with_mocked_replicate_api():
+    """Test image generation using mocked Replicate API (using responses)"""
+    import responses
+    from streamlit.testing.v1 import AppTest
+    
+    # Mock Replicate API response
+    mock_image_url = "https://replicate.delivery/pbxt/test-image.png"
+    
+    with responses.RequestsMock() as rsps:
+        # Mock the actual HTTP request that replicate.run() makes
+        # Replicate API typically makes POST requests to their API endpoint
+        rsps.add(
+            responses.POST,
+            "https://api.replicate.com/v1/predictions",
+            json={
+                "id": "test-prediction-id",
+                "status": "succeeded",
+                "output": [mock_image_url]
+            },
+            status=200,
+            content_type="application/json"
+        )
+        
+        # Also mock the polling endpoint that replicate uses
+        rsps.add(
+            responses.GET,
+            "https://api.replicate.com/v1/predictions/test-prediction-id",
+            json={
+                "id": "test-prediction-id",
+                "status": "succeeded",
+                "output": [mock_image_url]
+            },
+            status=200,
+            content_type="application/json"
+        )
+        
+        at = AppTest.from_file("streamlit_app.py")
+        at.secrets["REPLICATE_API_TOKEN"] = "test_token"
+        at.run()
+        assert not at.exception
+        
+        # Submit form to generate image
+        sidebar = at.sidebar
+        form = sidebar.form[0]
+        form.text_area[0].input("test prompt").run()
+        form.form_submit_button[0].click().run()
+        
+        # Verify image was generated (check for image display)
+        assert len(at.image) > 0
+
+def test_api_integration_with_requests_mock():
+    """Test image generation using mocked Replicate API (using requests-mock)"""
+    import requests_mock
+    from streamlit.testing.v1 import AppTest
+    
+    mock_image_url = "https://replicate.delivery/pbxt/test-image.png"
+    
+    with requests_mock.Mocker() as m:
+        # Mock Replicate API endpoints
+        m.post(
+            "https://api.replicate.com/v1/predictions",
+            json={
+                "id": "test-prediction-id",
+                "status": "succeeded",
+                "output": [mock_image_url]
+            }
+        )
+        
+        m.get(
+            "https://api.replicate.com/v1/predictions/test-prediction-id",
+            json={
+                "id": "test-prediction-id",
+                "status": "succeeded",
+                "output": [mock_image_url]
+            }
+        )
+        
+        at = AppTest.from_file("streamlit_app.py")
+        at.secrets["REPLICATE_API_TOKEN"] = "test_token"
+        at.run()
+        assert not at.exception
+        
+        # Test form submission
+        sidebar = at.sidebar
+        form = sidebar.form[0]
+        form.form_submit_button[0].click().run()
+        
+        # Verify API was called
+        assert m.called
+        assert len(at.image) > 0
+
+def test_api_error_handling_with_mocked_failure():
+    """Test error handling when Replicate API fails"""
+    import responses
+    from streamlit.testing.v1 import AppTest
+    
+    with responses.RequestsMock() as rsps:
+        # Mock API failure
+        rsps.add(
+            responses.POST,
+            "https://api.replicate.com/v1/predictions",
+            json={"error": "Invalid model endpoint"},
+            status=400,
+            content_type="application/json"
+        )
+        
+        at = AppTest.from_file("streamlit_app.py")
+        at.secrets["REPLICATE_API_TOKEN"] = "test_token"
+        at.run()
+        assert not at.exception
+        
+        # Submit form
+        sidebar = at.sidebar
+        form = sidebar.form[0]
+        form.form_submit_button[0].click().run()
+        
+        # Verify error message displayed
+        assert len(at.error) > 0
+        assert "error" in at.error[0].value.lower() or "failed" in at.error[0].value.lower()
+
+def test_model_endpoint_switching_with_mocked_api():
+    """Test that correct model endpoint is used when switching models"""
+    import responses
+    from streamlit.testing.v1 import AppTest
+    
+    with responses.RequestsMock() as rsps:
+        # Mock different endpoints for different models
+        rsps.add(
+            responses.POST,
+            "https://api.replicate.com/v1/predictions",
+            json={
+                "id": "test-1",
+                "status": "succeeded",
+                "output": ["https://replicate.delivery/pbxt/image1.png"]
+            },
+            status=200
+        )
+        
+        at = AppTest.from_file("streamlit_app.py")
+        at.secrets["REPLICATE_API_TOKEN"] = "test_token"
+        at.run()
+        assert not at.exception
+        
+        # Switch to helldiver model
+        sidebar = at.sidebar
+        model_selector = sidebar.selectbox[0]
+        model_selector.select("Helldiver Tactical Armor").run()
+        
+        # Submit form
+        form = sidebar.form[0]
+        form.form_submit_button[0].click().run()
+        
+        # Verify API was called (check that request was made)
+        assert len(rsps.calls) > 0
+        # Verify the request used the correct endpoint
+        # (This would need to check the actual request made by replicate library)
 ```
+
+### API Mocking Tests (Replicate API Integration)
+
+**Test File:** `tests/test_api_integration.py`
+
+**Purpose:** Test Replicate API integration using mocked HTTP requests
+
+**Using `responses` library:**
+
+```python
+import pytest
+import responses
+from streamlit.testing.v1 import AppTest
+
+@responses.activate
+def test_replicate_api_success():
+    """Test successful image generation with mocked Replicate API"""
+    # Mock Replicate API response
+    mock_image_url = "https://replicate.delivery/pbxt/test.png"
+    
+    responses.post(
+        "https://api.replicate.com/v1/predictions",
+        json={
+            "id": "pred-123",
+            "status": "succeeded",
+            "output": [mock_image_url]
+        },
+        status=200
+    )
+    
+    responses.get(
+        "https://api.replicate.com/v1/predictions/pred-123",
+        json={
+            "id": "pred-123",
+            "status": "succeeded",
+            "output": [mock_image_url]
+        },
+        status=200
+    )
+    
+    at = AppTest.from_file("streamlit_app.py")
+    at.secrets["REPLICATE_API_TOKEN"] = "test_token"
+    at.run()
+    
+    # Test image generation
+    sidebar = at.sidebar
+    form = sidebar.form[0]
+    form.text_area[0].input("test prompt").run()
+    form.form_submit_button[0].click().run()
+    
+    # Verify image displayed
+    assert len(at.image) > 0
+    assert len(responses.calls) >= 1  # Verify API was called
+```
+
+**Using `requests-mock` with pytest fixture:**
+
+```python
+import pytest
+import requests_mock
+from streamlit.testing.v1 import AppTest
+
+def test_replicate_api_with_requests_mock(requests_mock):
+    """Test using requests-mock pytest fixture"""
+    mock_image_url = "https://replicate.delivery/pbxt/test.png"
+    
+    requests_mock.post(
+        "https://api.replicate.com/v1/predictions",
+        json={
+            "id": "pred-123",
+            "status": "succeeded",
+            "output": [mock_image_url]
+        }
+    )
+    
+    requests_mock.get(
+        "https://api.replicate.com/v1/predictions/pred-123",
+        json={
+            "id": "pred-123",
+            "status": "succeeded",
+            "output": [mock_image_url]
+        }
+    )
+    
+    at = AppTest.from_file("streamlit_app.py")
+    at.secrets["REPLICATE_API_TOKEN"] = "test_token"
+    at.run()
+    
+    # Test functionality
+    sidebar = at.sidebar
+    form = sidebar.form[0]
+    form.form_submit_button[0].click().run()
+    
+    assert len(at.image) > 0
+    assert requests_mock.called  # Verify mock was used
+```
+
+**Choosing Between `responses` and `requests-mock`:**
+
+- **Use `responses`** when:
+  - You prefer decorator-based activation (`@responses.activate`)
+  - You need advanced matching features (query params, headers, body matching)
+  - You want to use context managers for fine-grained control
+  
+- **Use `requests-mock`** when:
+  - You prefer pytest fixtures (automatic cleanup)
+  - You want simpler API for basic mocking
+  - You're already using pytest fixtures extensively
+
+**Recommendation:** Use `responses` as primary choice for more advanced matching capabilities, but support both for flexibility.
+
+### Pytest Plugin Usage
+
+**pytest-cov (Code Coverage):**
+```python
+# Run tests with coverage
+pytest tests/ --cov=config --cov=utils --cov=streamlit_app
+
+# Generate HTML coverage report
+pytest tests/ --cov=config --cov=utils --cov=streamlit_app --cov-report=html
+
+# Coverage report will be in htmlcov/index.html
+```
+
+**pytest-skip-slow (Skip Slow Tests):**
+```python
+import pytest
+
+@pytest.mark.slow
+def test_performance_intensive_operation():
+    """This test will be skipped when running: pytest -m 'not slow'"""
+    # Long-running test
+    pass
+
+# Run without slow tests
+pytest tests/ -m "not slow"
+
+# Run only slow tests
+pytest tests/ -m "slow"
+```
+
+**pytest-skipuntil (Time-Based Test Skipping):**
+```python
+import pytest
+from datetime import datetime, timedelta
+
+@pytest.mark.skipuntil(datetime(2025, 2, 1))
+def test_feature_not_ready():
+    """This test will be skipped until February 1, 2025"""
+    # Test for feature that's not ready yet
+    pass
+```
+
+**pytest-recording (HTTP Recording):**
+```python
+import pytest
+
+@pytest.mark.vcr  # Record HTTP interactions
+def test_api_call_with_recording():
+    """First run records HTTP calls, subsequent runs replay them"""
+    # Make API call - first run records, subsequent runs use recording
+    response = requests.get("https://api.example.com/data")
+    assert response.status_code == 200
+
+# Run with recording
+pytest tests/ --record-mode=once  # Record once, then use recording
+pytest tests/ --record-mode=rewrite  # Always record (overwrites existing)
+pytest tests/ --record-mode=none  # Never record, only use existing recordings
+```
+
+**Note:** pytest-recording works with VCR.py and can complement `responses`/`requests-mock` for more complex scenarios where you want to record real API interactions once and replay them.
 
 ### Running Tests
 
@@ -631,12 +1061,28 @@ uv run pytest tests/
 
 # Run specific test file
 uv run pytest tests/test_streamlit_app.py
+uv run pytest tests/test_api_integration.py
 
 # Run with verbose output
 uv run pytest tests/ -v
 
-# Run with coverage (if pytest-cov installed)
-uv run pytest tests/ --cov=config --cov=utils
+# Run with coverage (pytest-cov installed)
+uv run pytest tests/ --cov=config --cov=utils --cov=streamlit_app
+
+# Run with coverage report
+uv run pytest tests/ --cov=config --cov=utils --cov=streamlit_app --cov-report=html --cov-report=term
+
+# Skip slow tests (pytest-skip-slow)
+uv run pytest tests/ -m "not slow"
+
+# Run only slow tests
+uv run pytest tests/ -m "slow"
+
+# Run tests with recording (pytest-recording)
+uv run pytest tests/ --record-mode=once
+
+# Run only API integration tests
+uv run pytest tests/test_api_integration.py -v
 ```
 
 ### Test Fixtures
@@ -836,6 +1282,30 @@ def test_model_switching_performance():
 - Selenium/Playwright: Browser automation, more complex setup, slower execution
 - Manual testing only: No automated regression testing, time-consuming
 - Unit tests only: Doesn't test Streamlit UI interactions and state management
+
+### Decision: HTTP Request Mocking Libraries
+
+**Rationale:**
+- **responses** (primary choice): Advanced matching capabilities, decorator support, comprehensive documentation
+- **requests-mock** (alternative): Pytest fixture support, simpler API, good for basic mocking
+- Both libraries intercept `requests` library calls made by `replicate` library
+- Enable testing API integration without making real HTTP requests
+- Faster test execution, no network dependencies, predictable test results
+
+**References:**
+- [responses Library](https://github.com/getsentry/responses)
+- [requests-mock Library](https://github.com/jamielennox/requests-mock)
+
+**Usage Strategy:**
+- Use `responses` for complex API mocking scenarios (query params, headers, body matching)
+- Use `requests-mock` when pytest fixtures are preferred
+- Mock Replicate API endpoints to test image generation without real API calls
+- Test error scenarios (API failures, network errors) easily with mocked responses
+
+**Alternatives Considered:**
+- Real API calls: Slow, unreliable, requires API keys, rate limits, costs
+- Manual API testing: Not automatable, time-consuming
+- Mocking at replicate library level: More complex, less flexible
 
 ---
 
