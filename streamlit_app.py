@@ -600,8 +600,14 @@ def configure_sidebar() -> None:
                                     'negative_prompt': st.session_state.get('form_negative_prompt'),
                                 })
                         
-                        # Update selected model
+                        # Update selected model atomically
                         _set_session_state('selected_model', new_selected_model)
+                        
+                        # Show visual feedback when model switches (Task 6: AC 3)
+                        if model_changed:
+                            model_name = new_selected_model.get('name', new_selected_model.get('id', 'Model'))
+                            # Use info message for brief, non-intrusive feedback
+                            st.info(f"🔄 Switched to model: **{model_name}**")
                         
                         # Apply preset for newly selected model (if model changed or on initial load)
                         # Check if preset hasn't been applied for this model yet

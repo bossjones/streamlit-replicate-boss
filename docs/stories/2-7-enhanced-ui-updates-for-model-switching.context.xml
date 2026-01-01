@@ -1,0 +1,157 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.7</storyId>
+    <title>Enhanced UI Updates for Model Switching</title>
+    <status>drafted</status>
+    <generatedAt>2026-01-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-7-enhanced-ui-updates-for-model-switching.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>the UI to clearly show what changed when I switch models</iWant>
+    <soThat>I understand the current configuration state</soThat>
+    <tasks>
+      <task id="1" ac="1">Ensure model selector updates immediately on selection change</task>
+      <task id="2" ac="1">Ensure model info section updates on model switch</task>
+      <task id="3" ac="1">Ensure prompt field updates with trigger words on model switch</task>
+      <task id="4" ac="1">Ensure settings update if preset has different defaults</task>
+      <task id="5" ac="2">Verify UI updates complete in &lt;1 second</task>
+      <task id="6" ac="3">Add visual feedback for model switch</task>
+      <task id="7" ac="4">Ensure all UI elements stay in sync with selected model state</task>
+      <task id="8" ac="5">Handle rapid model switching gracefully</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">When model switches, update all relevant UI elements: Model selector shows new selection, Model info section updates, Prompt field updates with new trigger words (if preset applied), Settings update if preset has different defaults</ac>
+    <ac id="2">UI updates are smooth and immediate (&lt;1 second)</ac>
+    <ac id="3">Visual feedback indicates model switch occurred (optional: brief message/toast)</ac>
+    <ac id="4">All UI elements stay in sync with selected model state</ac>
+    <ac id="5">Handle rapid model switching gracefully (no UI flicker or state confusion)</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 2.7">
+        Story 2.7 defines acceptance criteria for enhanced UI updates when switching models. All UI elements must update immediately and stay in sync.
+      </doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Model Switching &amp; State Management">
+        FR009 requires UI to update to reflect selected model, displaying model-specific information. NFR001 requires model switching to complete in &lt;1 second.
+      </doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="UX Design Principles">
+        Emphasizes workflow continuity and instant feedback. Model switch should provide clear visual indication of what changed.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="State Management Layer">
+        All UI elements must reflect the same model state. Use st.session_state.selected_model as single source of truth.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Model Switching">
+        Model selector dropdown updates st.session_state.selected_model on change. UI updates immediately via Streamlit's reactive framework. Performance: &lt;1 second achieved through session state.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Preset System">
+        UI updates must integrate with preset auto-application system. When preset applies trigger words and settings, UI must reflect these changes immediately.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Documentation" section="Component Structure">
+        Application uses Streamlit's declarative framework to create reactive single-page interface. State management uses Streamlit's session state for client-side data persistence.
+      </doc>
+      <doc path="docs/stories/2-3-display-model-information-in-sidebar.md" title="Story 2.3" section="Dev Notes">
+        Model information display includes model name, trigger words, and description. Must update immediately on model switch.
+      </doc>
+      <doc path="docs/stories/2-4-auto-apply-preset-on-model-selection.md" title="Story 2.4" section="Dev Notes">
+        Preset auto-application includes trigger word injection and settings updates. UI must reflect these changes immediately.
+      </doc>
+      <doc path="docs/stories/2-5-allow-manual-override-of-preset-values.md" title="Story 2.5" section="Dev Notes">
+        User modification tracking system prevents preset re-application after manual overrides. Should work correctly with UI updates.
+      </doc>
+      <doc path="docs/stories/2-6-implement-backward-compatibility-with-existing-configuration.md" title="Story 2.6" section="Dev Notes">
+        Model selector and UI components should work with both models.yaml and fallback configuration. Error handling patterns exist for graceful degradation.
+      </doc>
+    </docs>
+    <code>
+      <file path="streamlit_app.py" kind="main-application" symbol="configure_sidebar" lines="509-717">
+        Main sidebar configuration function. Contains model selector (lines 558-656), model info display (lines 658-716), and form inputs. Model selector updates st.session_state.selected_model when selection changes. Model info section displays selected model name, trigger words, and description.
+      </file>
+      <file path="streamlit_app.py" kind="main-application" symbol="_apply_preset_for_model" lines="41-200">
+        Applies preset for selected model. Returns preset dict and success flag. Handles trigger word injection and settings updates. Respects user modifications and doesn't re-apply if user has modified values.
+      </file>
+      <file path="streamlit_app.py" kind="main-application" symbol="initialize_session_state" lines="221-506">
+        Initializes session state with model configurations. Sets st.session_state.model_configs and st.session_state.selected_model. Handles fallback to secrets.toml if models.yaml missing.
+      </file>
+      <file path="streamlit_app.py" kind="main-application" symbol="_set_session_state" lines="24-38">
+        Helper function to safely set session state values. Handles AttributeError and RuntimeError exceptions.
+      </file>
+      <file path="utils/preset_manager.py" kind="utility-module" symbol="load_presets_config" lines="10-136">
+        Loads and parses presets.yaml configuration file. Returns dictionary grouped by model_id. Handles missing file gracefully.
+      </file>
+      <file path="config/model_loader.py" kind="config-module" symbol="load_models_config" lines="10-110">
+        Loads and parses models.yaml configuration file. Returns list of model dictionaries with validated structure. Raises FileNotFoundError if file missing.
+      </file>
+      <file path="config/model_loader.py" kind="config-module" symbol="validate_model_config" lines="113-169">
+        Validates individual model configuration dictionary. Checks required fields (id, name, endpoint) and validates endpoint format.
+      </file>
+    </code>
+    <dependencies>
+      <python>
+        <package name="streamlit" version="&gt;=1.50.0">UI framework with reactive state management</package>
+        <package name="pyyaml" version="&gt;=6.0.1">YAML parsing for configuration files</package>
+        <package name="replicate" version="&gt;=1.0.7">API client for model inference</package>
+        <package name="requests" version="&gt;=2.32.5">HTTP requests for image downloads</package>
+        <package name="streamlit-image-select" version="&gt;=0.6.0">Image gallery component</package>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>UI Update Performance: NFR001 requires model switching to complete in &lt;1 second. UI updates must be immediate and non-blocking. Use Streamlit's reactive framework to ensure updates happen synchronously with state changes.</constraint>
+    <constraint>State Synchronization: All UI elements must reflect the same model state. Use st.session_state.selected_model as single source of truth. Ensure all components read from this state and update when it changes.</constraint>
+    <constraint>Preset Integration: UI updates must integrate with preset auto-application system. When preset applies trigger words and settings, UI must reflect these changes immediately.</constraint>
+    <constraint>Streamlit Reactive Framework: Streamlit automatically re-runs script on state changes. UI updates happen automatically when session state changes. Need to ensure state changes are atomic and complete before next interaction.</constraint>
+    <constraint>Visual Feedback: PRD emphasizes workflow continuity and instant feedback. Model switch should provide clear visual indication of what changed. Use st.info() or similar for brief, non-intrusive feedback.</constraint>
+    <constraint>Rapid Switching Handling: Streamlit's reactive framework handles rapid state changes, but need to ensure no race conditions. Last state change should be the one that applies.</constraint>
+    <constraint>Error Handling: UI updates should handle errors gracefully without breaking the interface. Use existing error handling patterns from previous stories.</constraint>
+    <constraint>Backward Compatibility: UI components should work with both models.yaml and fallback configuration from secrets.toml.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="Session State - Selected Model" kind="state-variable" signature="st.session_state.selected_model: Dict[str, Any]" path="streamlit_app.py">
+      Single source of truth for currently selected model. Contains: id, name, endpoint, trigger_words (optional), default_settings (optional). All UI components should read from this state.
+    </interface>
+    <interface name="Session State - Model Configs" kind="state-variable" signature="st.session_state.model_configs: List[Dict[str, Any]]" path="streamlit_app.py">
+      List of all loaded model configurations. Used to populate model selector dropdown options.
+    </interface>
+    <interface name="Session State - Presets" kind="state-variable" signature="st.session_state.presets: Dict[str, List[Dict[str, Any]]]" path="streamlit_app.py">
+      Dictionary of presets grouped by model_id. Used to apply presets when model is selected.
+    </interface>
+    <interface name="Preset Application Function" kind="function" signature="_apply_preset_for_model(selected_model: dict) -&gt; tuple[dict | None, bool]" path="streamlit_app.py:41-200">
+      Applies preset for selected model. Returns tuple of (preset_dict, was_applied). Handles trigger word injection and settings updates. Respects user modifications.
+    </interface>
+    <interface name="Model Selector Selectbox" kind="ui-component" signature="st.selectbox('Select Model', options=model_names, index=current_index, key='model_selector')" path="streamlit_app.py:558-563">
+      Model selector dropdown. Updates st.session_state.selected_model when selection changes. Uses model names as options.
+    </interface>
+    <interface name="Form Input Keys" kind="session-state-keys" signature="form_prompt, form_width, form_height, form_scheduler, etc." path="streamlit_app.py:718+">
+      Form input fields use session state keys (form_*) so values persist across reruns. Settings should update these keys when preset is applied.
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing uses pytest framework with Streamlit AppTest for integration testing. Tests should verify UI updates complete within 1 second performance requirement. Use existing test patterns from test_streamlit_app.py. Tests should cover model selector updates, model info updates, prompt field updates, settings updates, visual feedback, state synchronization, and rapid switching scenarios.
+    </standards>
+    <locations>
+      <location>tests/integration/test_streamlit_app.py</location>
+      <location>tests/unit/</location>
+    </locations>
+    <ideas>
+      <test ac="1">Test model selector dropdown updates when model selection changes. Verify selector index reflects current selected_model.</test>
+      <test ac="1">Test model info section updates when model switches. Verify model name, trigger words, and description display correctly.</test>
+      <test ac="1">Test prompt field updates with trigger words when preset auto-applies. Verify trigger words are injected correctly (prepend/append).</test>
+      <test ac="1">Test settings update when preset has different defaults. Verify width, height, scheduler, and other settings update correctly.</test>
+      <test ac="2">Test UI updates complete in &lt;1 second. Measure time from model selection change to all UI updates complete.</test>
+      <test ac="3">Test visual feedback appears on model switch. Verify info message or toast displays when model changes.</test>
+      <test ac="4">Test all UI elements stay in sync after model switch. Verify model selector, model info, prompt, and settings all reflect same model.</test>
+      <test ac="5">Test rapid model switching works without flicker. Verify last selected model is correctly applied, no race conditions.</test>
+    </ideas>
+  </tests>
+</story-context>
