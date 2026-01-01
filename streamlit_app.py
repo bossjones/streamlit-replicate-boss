@@ -457,6 +457,66 @@ def configure_sidebar() -> None:
                         # Update selected model
                         _set_session_state('selected_model', new_selected_model)
         
+        # Model Information Section - Display selected model details
+        # Get updated selected_model after potential change
+        selected_model = st.session_state.get('selected_model', None)
+        
+        if selected_model:
+            # Visual separator between model selector and info
+            st.divider()
+            
+            # Display model name prominently
+            model_name = selected_model.get('name', selected_model.get('id', 'Unknown Model'))
+            st.subheader(f"📦 {model_name}")
+            
+            # Show trigger words if available (from model config or preset)
+            trigger_words = None
+            
+            # First, check for trigger words in model config
+            model_trigger_words = selected_model.get('trigger_words')
+            if model_trigger_words:
+                # Check if it's a non-empty list or non-empty string
+                if isinstance(model_trigger_words, list) and len(model_trigger_words) > 0:
+                    # Filter out empty strings from list
+                    filtered = [tw for tw in model_trigger_words if tw and str(tw).strip()]
+                    if filtered:
+                        trigger_words = filtered
+                elif isinstance(model_trigger_words, str) and model_trigger_words.strip():
+                    trigger_words = model_trigger_words
+            
+            # If not in model config, check for trigger words in matching preset
+            if not trigger_words:
+                model_id = selected_model.get('id')
+                if model_id:
+                    presets = st.session_state.get('presets', {})
+                    model_presets = presets.get(model_id, [])
+                    # Use first preset's trigger words if available
+                    if model_presets and len(model_presets) > 0:
+                        first_preset = model_presets[0]
+                        preset_trigger_words = first_preset.get('trigger_words')
+                        if preset_trigger_words:
+                            if isinstance(preset_trigger_words, list) and len(preset_trigger_words) > 0:
+                                # Filter out empty strings from list
+                                filtered = [tw for tw in preset_trigger_words if tw and str(tw).strip()]
+                                if filtered:
+                                    trigger_words = filtered
+                            elif isinstance(preset_trigger_words, str) and preset_trigger_words.strip():
+                                trigger_words = preset_trigger_words
+            
+            # Display trigger words if available
+            if trigger_words:
+                # Format trigger words for display
+                if isinstance(trigger_words, list):
+                    trigger_words_display = ", ".join(str(tw) for tw in trigger_words)
+                    st.info(f"**Trigger Words:** {trigger_words_display}")
+                elif isinstance(trigger_words, str):
+                    st.info(f"**Trigger Words:** {trigger_words}")
+            
+            # Display model description if provided
+            description = selected_model.get('description')
+            if description and description.strip():
+                st.caption(description)
+        
         with st.form("my_form"):
             st.info("**Yo fam! Start here ↓**", icon="👋🏾")
             
