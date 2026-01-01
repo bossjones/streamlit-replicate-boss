@@ -9,6 +9,7 @@ import yaml
 from utils import icon
 from streamlit_image_select import image_select
 from config.model_loader import load_models_config
+from utils.preset_manager import load_presets_config
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,19 @@ def initialize_session_state() -> None:
     """
     # Check if already initialized to avoid re-initialization on reruns
     if 'model_configs' in st.session_state and 'selected_model' in st.session_state:
+        # Still load presets if not already loaded (presets are independent of model initialization)
+        if 'presets' not in st.session_state:
+            try:
+                presets = load_presets_config("presets.yaml")
+                _set_session_state('presets', presets)
+                logger.info(f"Presets loaded: {len(presets)} model(s) with presets")
+            except (yaml.YAMLError, ValueError) as e:
+                logger.error(f"Error loading presets: {e}")
+                _set_session_state('presets', {})
+                try:
+                    st.error(f"Error loading presets configuration: {e}")
+                except (AttributeError, RuntimeError):
+                    pass
         return
     
     try:
@@ -106,6 +120,19 @@ def initialize_session_state() -> None:
         
         # Initialize model_configs with loaded models
         _set_session_state('model_configs', models)
+        
+        # Load presets from configuration (AC: 3)
+        try:
+            presets = load_presets_config("presets.yaml")
+            _set_session_state('presets', presets)
+            logger.info(f"Presets loaded: {len(presets)} model(s) with presets")
+        except (yaml.YAMLError, ValueError) as e:
+            logger.error(f"Error loading presets: {e}")
+            _set_session_state('presets', {})
+            try:
+                st.error(f"Error loading presets configuration: {e}")
+            except (AttributeError, RuntimeError):
+                pass
         
         # Handle empty models list
         if not models:
@@ -156,6 +183,16 @@ def initialize_session_state() -> None:
                 }
                 _set_session_state('model_configs', [fallback_model])
                 _set_session_state('selected_model', fallback_model)
+                
+                # Load presets even in fallback mode (presets are independent)
+                try:
+                    presets = load_presets_config("presets.yaml")
+                    _set_session_state('presets', presets)
+                    logger.info(f"Presets loaded: {len(presets)} model(s) with presets")
+                except (yaml.YAMLError, ValueError) as e:
+                    logger.error(f"Error loading presets: {e}")
+                    _set_session_state('presets', {})
+                
                 logger.info(f"Using fallback configuration from secrets.toml: {fallback_endpoint}")
                 st.info(
                     "ℹ️ **Fallback Mode Activated**\n\n"
@@ -167,6 +204,16 @@ def initialize_session_state() -> None:
                 # No valid fallback available
                 _set_session_state('model_configs', [])
                 _set_session_state('selected_model', None)
+                
+                # Still try to load presets (presets are independent)
+                try:
+                    presets = load_presets_config("presets.yaml")
+                    _set_session_state('presets', presets)
+                    logger.info(f"Presets loaded: {len(presets)} model(s) with presets")
+                except (yaml.YAMLError, ValueError) as e:
+                    logger.error(f"Error loading presets: {e}")
+                    _set_session_state('presets', {})
+                
                 logger.error("No fallback configuration available. models.yaml missing and REPLICATE_MODEL_ENDPOINTSTABILITY not found in secrets.toml.")
                 st.error(
                     "❌ **Configuration Error**\n\n"
@@ -180,6 +227,15 @@ def initialize_session_state() -> None:
             logger.error(f"Fallback to secrets.toml failed: {fallback_error}")
             _set_session_state('model_configs', [])
             _set_session_state('selected_model', None)
+            
+            # Still try to load presets (presets are independent)
+            try:
+                presets = load_presets_config("presets.yaml")
+                _set_session_state('presets', presets)
+                logger.info(f"Presets loaded: {len(presets)} model(s) with presets")
+            except (yaml.YAMLError, ValueError) as preset_error:
+                logger.error(f"Error loading presets: {preset_error}")
+                _set_session_state('presets', {})
             st.error(
                 "❌ **Configuration Error**\n\n"
                 f"Failed to load model configuration: {str(e)}\n\n"

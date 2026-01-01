@@ -1,0 +1,143 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.2</storyId>
+    <title>Load and Store Preset Configurations</title>
+    <status>drafted</status>
+    <generatedAt>2026-01-01T19:52:52Z</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-2-load-and-store-preset-configurations.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>presets to be available when I select a model</iWant>
+    <soThat>optimal settings are ready to apply automatically</soThat>
+    <tasks>
+      <task id="1">Create preset loading function (AC: 1, 2)</task>
+      <task id="2">Implement preset structure validation (AC: 2)</task>
+      <task id="3">Store presets in session state (AC: 3)</task>
+      <task id="4">Handle missing preset file gracefully (AC: 4)</task>
+      <task id="5">Handle invalid preset format with clear error messages (AC: 5)</task>
+      <task id="6">Ensure preset loading completes efficiently (AC: 6)</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Create function to load `presets.yaml` at application startup</criterion>
+    <criterion id="2">Parse and validate preset structure</criterion>
+    <criterion id="3">Store presets in `st.session_state.presets` linked by `model_id`</criterion>
+    <criterion id="4">Handle missing preset file gracefully (no presets, but app still works)</criterion>
+    <criterion id="5">Handle invalid preset format with clear error messages</criterion>
+    <criterion id="6">Preset loading completes efficiently (&lt;500ms)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 2.2: Load and Store Preset Configurations">
+        Story requirements and acceptance criteria for loading and storing preset configurations. Defines user story, acceptance criteria, and prerequisites.
+      </doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Preset Management">
+        Functional requirements for preset system including FR012-FR016. Defines preset storage, auto-application, manual override, and file-based storage requirements.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Preset System (Epic 2)">
+        Technical implementation details for preset loading function `load_presets_config()`, validation, session state structure, and error handling patterns.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Session State Structure">
+        Defines session state structure for presets: `st.session_state.presets` as dict grouped by model_id: `{model_id: [preset1, preset2, ...]}`.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Error Handling (Story 1.7)">
+        Error handling patterns for configuration loading: graceful degradation, clear error messages, fallback behavior. Never crash application.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Source Tree Structure">
+        Module structure: Create `utils/preset_manager.py` following same pattern as `config/model_loader.py`. Module handles preset loading, validation, and application logic.
+      </doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Non-Functional Requirements">
+        Performance requirement NFR002: Configuration file loading must complete in less than 500ms. Applies to preset loading.
+      </doc>
+      <doc path="presets.yaml" title="Preset Configuration File">
+        Preset configuration file with schema documentation. Contains default presets for sdxl, helldiver, and starship-trooper models. Located at project root.
+      </doc>
+      <doc path="docs/stories/2-1-create-preset-configuration-file-structure.md" title="Story 2.1" section="Dev Notes">
+        Learnings from previous story: configuration file patterns, error handling patterns, YAML validation approach, testing approach, file location.
+      </doc>
+      <doc path="docs/stories/1-7-handle-configuration-errors-and-edge-cases.md" title="Story 1.7" section="Completion Notes List">
+        Error handling patterns for configuration loading: graceful degradation (missing file doesn't crash app), clear error messages with context, fallback behavior.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Documentation" section="State Management">
+        Streamlit session state management patterns. Session state persists across page interactions within same session.
+      </doc>
+    </docs>
+    <code>
+      <artifact path="config/model_loader.py" kind="module" symbol="load_models_config" lines="10-110" reason="Reference implementation for loading YAML configuration files. Follow same pattern for preset loading: use yaml.safe_load(), validate structure, handle errors gracefully."/>
+      <artifact path="config/model_loader.py" kind="module" symbol="validate_model_config" lines="113-169" reason="Reference implementation for validating configuration structure. Follow same pattern for preset validation: check required fields, validate types, provide clear error messages."/>
+      <artifact path="streamlit_app.py" kind="function" symbol="initialize_session_state" lines="85-316" reason="Session state initialization function. Add preset loading call here, similar to how load_models_config() is called. Store result in st.session_state.presets."/>
+      <artifact path="streamlit_app.py" kind="function" symbol="main" lines="731-746" reason="Application entry point. initialize_session_state() is called here before UI rendering. This is where preset loading should be integrated."/>
+      <artifact path="streamlit_app.py" kind="function" symbol="_set_session_state" lines="23-37" reason="Helper function for setting session state values. Use this pattern when setting st.session_state.presets to ensure compatibility with testing."/>
+      <artifact path="tests/test_model_loader.py" kind="test" symbol="TestLoadModelsConfig" lines="39-369" reason="Reference test suite for configuration loading. Follow same patterns: test valid config, missing file, invalid YAML, missing fields, validation errors. Use tempfile fixtures."/>
+      <artifact path="tests/test_preset_loader.py" kind="test" symbol="TestPresetsYAMLFile" lines="51-305" reason="Test suite for presets.yaml file structure validation. Tests YAML syntax, structure, required fields, field types, model_id references. Use as reference for preset loading tests."/>
+      <artifact path="utils/__init__.py" kind="module" symbol="" lines="" reason="Utils module initialization file. Module already exists, so preset_manager.py can be imported as from utils.preset_manager import load_presets_config."/>
+    </code>
+    <dependencies>
+      <ecosystem name="python">
+        <package name="pyyaml" version=">=6.0.1" reason="Required for parsing presets.yaml file. Use yaml.safe_load() for parsing."/>
+        <package name="streamlit" version=">=1.50.0" reason="Web framework. Required for session state management (st.session_state.presets)."/>
+        <package name="pytest" version=">=8.0.0" reason="Test framework. Required for creating test suite for preset loading functionality."/>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Module Structure: Create `utils/preset_manager.py` following the same pattern as `config/model_loader.py`. This module will handle preset loading, validation, and application logic.</constraint>
+    <constraint>Preset Loading Function: Implement `load_presets_config(file_path: str = "presets.yaml") -&gt; Dict[str, List[Dict]]` that loads and parses presets.yaml, validates structure, and groups presets by model_id.</constraint>
+    <constraint>Session State Structure: Store presets in `st.session_state.presets` as dict grouped by model_id: `{model_id: [preset1, preset2, ...]}`. This enables efficient lookup when model is selected.</constraint>
+    <constraint>Error Handling: Handle missing file gracefully (return empty dict, app still works). Handle invalid YAML with clear error messages. Never crash application - always provide fallback.</constraint>
+    <constraint>Performance Requirement: Preset loading must complete in &lt;500ms (NFR002). Use efficient YAML parsing and single-pass grouping algorithm.</constraint>
+    <constraint>Validation Requirements: Validate preset structure (required fields: id, name, model_id). Validate model_id references against models.yaml. Validate optional fields (trigger_words, settings) if present.</constraint>
+    <constraint>Backward Compatibility: If presets.yaml is missing, application should continue to work normally. Presets are optional enhancement - core functionality (model selection, image generation) should work without presets.</constraint>
+    <constraint>Integration Point: Call `load_presets_config()` in `streamlit_app.py` main() function at application startup, similar to how `load_models_config()` is called. Store result in `st.session_state.presets`.</constraint>
+    <constraint>File Location: presets.yaml is located in project root (same location as models.yaml) for consistency and easy discovery.</constraint>
+    <constraint>Model ID Validation: Must cross-reference preset `model_id` values with valid model `id` values from models.yaml. Use `config/model_loader.py` to load models for validation.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="load_presets_config" kind="function" signature="load_presets_config(file_path: str = 'presets.yaml') -&gt; Dict[str, List[Dict]]" path="utils/preset_manager.py">
+      Load and parse presets.yaml configuration file. Returns dict grouped by model_id: {model_id: [preset1, preset2, ...]}. Handles missing file gracefully (returns empty dict). Raises yaml.YAMLError for invalid YAML, ValueError for validation errors.
+    </interface>
+    <interface name="validate_preset_config" kind="function" signature="validate_preset_config(preset: Dict) -&gt; bool" path="utils/preset_manager.py">
+      Validate individual preset configuration dictionary. Checks required fields (id, name, model_id), validates optional fields (trigger_words, settings), validates model_id references. Returns True if valid, raises ValueError with details if invalid.
+    </interface>
+    <interface name="st.session_state.presets" kind="session_state" signature="Dict[str, List[Dict]]" path="streamlit_app.py">
+      Session state variable storing presets grouped by model_id. Structure: {model_id: [preset1, preset2, ...]}. Initialized in initialize_session_state() function. Persists across page interactions.
+    </interface>
+    <interface name="load_models_config" kind="function" signature="load_models_config(file_path: str = 'models.yaml') -&gt; List[Dict[str, Any]]" path="config/model_loader.py">
+      Reference function for loading YAML configuration. Use this pattern for preset loading. Also used for model_id validation - load models to cross-reference preset model_id values.
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use pytest framework for testing. Follow patterns from test_model_loader.py and test_preset_loader.py. Use tempfile fixtures for test YAML files. Test valid presets, missing file, invalid YAML, missing required fields, invalid model_id references, performance requirements. Use pytest fixtures for test data. Test both positive and negative scenarios.
+    </standards>
+    <locations>
+      <location>tests/test_preset_manager.py</location>
+      <location>tests/unit/</location>
+      <location>tests/integration/</location>
+    </locations>
+    <ideas>
+      <test ac="1">Test load_presets_config() loads valid presets.yaml successfully and returns correct dict structure grouped by model_id</test>
+      <test ac="2">Test validate_preset_config() catches missing required fields (id, name, model_id) and provides specific error messages</test>
+      <test ac="2">Test validate_preset_config() validates optional fields (trigger_words as string or list, settings as dict) if present</test>
+      <test ac="2">Test validate_preset_config() validates model_id references against models.yaml (cross-reference check)</test>
+      <test ac="3">Test presets stored in st.session_state.presets after load in initialize_session_state()</test>
+      <test ac="3">Test presets accessible via st.session_state.presets[model_id] after initialization</test>
+      <test ac="4">Test missing presets.yaml file returns empty dict {} without crashing application</test>
+      <test ac="4">Test application functions normally (model selection, image generation) without presets.yaml</test>
+      <test ac="5">Test invalid YAML syntax shows clear error message with file path and line number if available</test>
+      <test ac="5">Test missing required fields shows specific field names and expected values in error messages</test>
+      <test ac="5">Test invalid model_id shows which preset and model_id value in error message</test>
+      <test ac="6">Test preset loading completes in &lt;500ms with presets.yaml containing 10+ presets (performance test)</test>
+      <test ac="6">Test preset loading uses efficient single-pass grouping algorithm (verify algorithm efficiency)</test>
+    </ideas>
+  </tests>
+</story-context>
