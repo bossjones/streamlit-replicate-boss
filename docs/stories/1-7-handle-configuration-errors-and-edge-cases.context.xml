@@ -1,0 +1,131 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>7</storyId>
+    <title>Handle Configuration Errors and Edge Cases</title>
+    <status>drafted</status>
+    <generatedAt>2026-01-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-7-handle-configuration-errors-and-edge-cases.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>clear error messages when something goes wrong</iWant>
+    <soThat>I understand what happened and how to fix it</soThat>
+    <tasks>
+      <task id="1" ac="1">Implement error handling for missing models.yaml file</task>
+      <task id="2" ac="1">Implement error handling for invalid YAML syntax</task>
+      <task id="3" ac="1">Implement error handling for missing required fields</task>
+      <task id="4" ac="1">Implement error handling for invalid model endpoint format</task>
+      <task id="5" ac="1">Enhance API error handling with model context</task>
+      <task id="6" ac="2">Implement fallback behavior for config failures</task>
+      <task id="7" ac="3">Ensure errors don't crash the application</task>
+      <task id="8" ac="4">Display error messages in UI</task>
+      <task id="9" ac="5">Implement appropriate error logging</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Display user-friendly error messages for: Missing models.yaml file, Invalid YAML syntax, Missing required fields in model config, Invalid model endpoint format, API errors when using selected model</ac>
+    <ac id="2">Provide fallback behavior: if config fails, use existing single-model behavior (backward compatibility)</ac>
+    <ac id="3">Errors don't crash the application</ac>
+    <ac id="4">Error messages are visible in UI (not just console)</ac>
+    <ac id="5">Log errors appropriately for debugging</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 1.7">
+        Story requirements and acceptance criteria for handling configuration errors and edge cases. Defines error types to handle and fallback behavior requirements.
+      </doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Integration & API, Model Management & Configuration">
+        Functional requirements FR005 (configuration validation), FR018 (error handling), FR019 (graceful degradation), FR020 (backward compatibility). Defines error handling requirements and fallback behavior.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Documentation" section="Component Overview, Security Considerations">
+        Error display patterns using Streamlit components (st.error, st.warning). Logging patterns with Python logging module. Security considerations for error messages.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Error Handling (Story 1.7)">
+        Specific error handling implementation guidance: configuration errors (missing file, invalid YAML, missing fields, invalid endpoint), API errors, error display patterns, fallback behavior.
+      </doc>
+      <doc path="docs/stories/1-6-integrate-selected-model-endpoint-with-api-calls.md" title="Previous Story" section="Completion Notes List, File List">
+        Error handling patterns from Story 1.6: specific exception types (ValueError, KeyError, Exception), error messages with model context, defensive programming patterns, error display using st.error(), logging patterns.
+      </doc>
+      <doc path="docs/stories/1-2-load-and-validate-model-configuration.md" title="Config Loading Story" section="">
+        Reference for config loading implementation location and patterns.
+      </doc>
+      <doc path="docs/stories/1-3-initialize-session-state-for-model-management.md" title="Session State Story" section="">
+        Reference for session state initialization patterns and error handling requirements.
+      </doc>
+    </docs>
+    <code>
+      <file path="config/model_loader.py" kind="service" symbol="load_models_config" lines="10-105" reason="Main function for loading models.yaml. Currently raises FileNotFoundError and yaml.YAMLError. Needs enhanced error handling with UI display and fallback behavior." />
+      <file path="config/model_loader.py" kind="service" symbol="validate_model_config" lines="108-157" reason="Validates individual model configuration. Currently raises ValueError for missing fields and invalid endpoint format. Needs enhanced error messages with specific field/model context." />
+      <file path="streamlit_app.py" kind="controller" symbol="initialize_session_state" lines="67-128" reason="Initializes session state and loads models. Currently has basic error handling (FileNotFoundError, generic Exception) with st.warning/st.error. Needs enhanced error handling per AC requirements." />
+      <file path="streamlit_app.py" kind="controller" symbol="main_page" lines="341-465" reason="Main page function with API error handling. Already has error handling patterns (ValueError, KeyError, Exception) with st.error() and logging. Can reference for error display patterns." />
+      <file path="streamlit_app.py" kind="controller" symbol="get_replicate_model_endpoint" lines="53-55" reason="Fallback function for getting endpoint from secrets.toml. Used for backward compatibility fallback behavior." />
+      <file path="streamlit_app.py" kind="utility" symbol="get_secret" lines="22-45" reason="Helper function for getting secrets with fallback for testing. Pattern for accessing secrets.toml values." />
+      <file path="tests/integration/test_streamlit_app.py" kind="test" symbol="TestMainPage" lines="490+" reason="Integration tests for main_page error handling. Reference for testing patterns: test_main_page_handles_invalid_endpoint, test_main_page_handles_api_error_with_model_name, test_main_page_fallback_when_selected_model_missing." />
+    </code>
+    <dependencies>
+      <python>
+        <package name="streamlit" version=">=1.50.0" reason="UI framework for error display components (st.error, st.warning)" />
+        <package name="pyyaml" version=">=6.0.1" reason="YAML parsing for models.yaml. Provides yaml.YAMLError exception and parsing capabilities." />
+        <package name="pytest" version=">=8.0.0" reason="Testing framework for error handling tests" />
+        <package name="replicate" version=">=1.0.7" reason="API client for Replicate. May raise exceptions during API calls." />
+        <package name="requests" version=">=2.32.5" reason="HTTP client for image downloads. May raise network exceptions." />
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Error messages must be user-friendly and actionable, displayed in UI using Streamlit components (st.error, st.warning)</constraint>
+    <constraint>Application must never crash - all errors must be caught and handled gracefully with fallback behavior</constraint>
+    <constraint>Backward compatibility must be maintained: if config fails, fallback to secrets.toml single-model behavior</constraint>
+    <constraint>Error logging must use Python logging module with appropriate severity levels (ERROR, WARNING)</constraint>
+    <constraint>Error messages must include context (model name, file path, specific field) for clarity</constraint>
+    <constraint>Sensitive information must not be logged (API tokens, secrets)</constraint>
+    <constraint>Error handling must follow defensive programming patterns: use try-except blocks, validate inputs, safe access patterns</constraint>
+    <constraint>Testing must cover all error scenarios: missing file, invalid YAML, missing fields, invalid endpoints, API errors</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="load_models_config" kind="function" signature="load_models_config(file_path: str = 'models.yaml') -> List[Dict[str, Any]]" path="config/model_loader.py">
+      Currently raises FileNotFoundError, yaml.YAMLError, ValueError. Should be enhanced to handle errors gracefully and return fallback or display UI errors.
+    </interface>
+    <interface name="initialize_session_state" kind="function" signature="initialize_session_state() -> None" path="streamlit_app.py">
+      Currently handles FileNotFoundError and generic Exception with st.warning/st.error. Should be enhanced per AC requirements.
+    </interface>
+    <interface name="st.error" kind="streamlit_component" signature="st.error(body, icon=None)" path="streamlit_app.py">
+      Used for displaying critical errors in UI. Pattern: st.error('message', icon='🚨')
+    </interface>
+    <interface name="st.warning" kind="streamlit_component" signature="st.warning(body, icon=None)" path="streamlit_app.py">
+      Used for displaying non-critical warnings in UI. Pattern: st.warning('message', icon='⚠️')
+    </interface>
+    <interface name="logger" kind="logging" signature="logger.error(msg), logger.warning(msg)" path="streamlit_app.py, config/model_loader.py">
+      Python logging module for error logging. Pattern: logger.error(f'Error: {error_msg}') with context.
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use pytest framework with Streamlit's AppTest for integration testing. Follow existing test patterns from Story 1.6 (test_main_page_handles_invalid_endpoint, test_main_page_handles_api_error_with_model_name). Test all error scenarios: missing models.yaml, invalid YAML syntax, missing required fields, invalid endpoint format, API errors. Use mocking for file system operations and API calls. Verify error messages display in UI and logging occurs appropriately.
+    </standards>
+    <locations>
+      <location>tests/integration/test_streamlit_app.py</location>
+      <location>tests/unit/</location>
+      <location>tests/integration/</location>
+    </locations>
+    <ideas>
+      <test ac="1">Test missing models.yaml: mock FileNotFoundError, verify st.error displays, verify fallback to secrets.toml</test>
+      <test ac="1">Test invalid YAML syntax: create malformed YAML file, verify st.error displays with line number, verify app doesn't crash</test>
+      <test ac="1">Test missing required fields: create config missing id/name/endpoint, verify specific error message identifies field and model</test>
+      <test ac="1">Test invalid endpoint format: create config with malformed endpoint, verify st.error displays with format guidance</test>
+      <test ac="1">Test API errors: mock replicate.run() to raise Exception, verify st.error displays with model name, verify logging occurs</test>
+      <test ac="2">Test fallback behavior: mock missing models.yaml, verify secrets.toml endpoint used, verify informational message displays</test>
+      <test ac="3">Test app doesn't crash: trigger all error scenarios, verify app continues to function, verify UI remains accessible</test>
+      <test ac="4">Test error visibility: verify st.error/st.warning calls display in sidebar/main area, verify messages are persistent</test>
+      <test ac="5">Test error logging: verify logger.error/logger.warning called with context, verify log messages contain useful debugging info</test>
+    </ideas>
+  </tests>
+</story-context>

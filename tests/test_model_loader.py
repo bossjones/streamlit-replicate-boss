@@ -110,8 +110,35 @@ models:
         try:
             with pytest.raises(ValueError) as exc_info:
                 load_models_config(temp_path)
-            assert "Missing required fields" in str(exc_info.value)
-            assert "endpoint" in str(exc_info.value)
+            error_msg = str(exc_info.value)
+            assert "Missing required fields" in error_msg
+            assert "endpoint" in error_msg
+            # Verify model context is included (Story 1.7)
+            assert "Test" in error_msg or "test" in error_msg
+        finally:
+            os.unlink(temp_path)
+    
+    def test_load_missing_required_fields_with_model_context(self):
+        """Test error message includes model name and id for missing fields (Story 1.7, AC: 1)."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write("""
+models:
+  - id: "my-model"
+    name: "My Test Model"
+    # endpoint missing
+  - id: "another-model"
+    name: "Another Model"
+    # name missing
+""")
+            temp_path = f.name
+        
+        try:
+            with pytest.raises(ValueError) as exc_info:
+                load_models_config(temp_path)
+            error_msg = str(exc_info.value)
+            # Verify model context is included
+            assert "My Test Model" in error_msg or "my-model" in error_msg
+            assert "endpoint" in error_msg
         finally:
             os.unlink(temp_path)
     
@@ -157,8 +184,25 @@ class TestValidateModelConfig:
         }
         with pytest.raises(ValueError) as exc_info:
             validate_model_config(model)
-        assert "endpoint" in str(exc_info.value).lower()
-        assert "/" in str(exc_info.value) or "format" in str(exc_info.value).lower()
+        error_msg = str(exc_info.value)
+        assert "endpoint" in error_msg.lower()
+        assert "/" in error_msg or "format" in error_msg.lower()
+        # Verify model context is included (Story 1.7)
+        assert "Test Model" in error_msg or "test-model" in error_msg
+    
+    def test_validate_invalid_endpoint_format_with_example(self):
+        """Test error message includes example format for invalid endpoint (Story 1.7, AC: 1)."""
+        model = {
+            'id': 'my-model',
+            'name': 'My Model',
+            'endpoint': 'invalidformat'  # missing '/'
+        }
+        with pytest.raises(ValueError) as exc_info:
+            validate_model_config(model)
+        error_msg = str(exc_info.value)
+        # Verify example format is included
+        assert "owner/model:version" in error_msg or "format" in error_msg.lower()
+        assert "My Model" in error_msg or "my-model" in error_msg
     
     def test_validate_optional_trigger_words_string(self):
         """Test validation with optional trigger_words as string (AC2)."""
@@ -292,6 +336,34 @@ class TestLogging:
             except ValueError:
                 pass
             
+            assert any("error" in record.levelname.lower() for record in caplog.records)
+        finally:
+            os.unlink(temp_path)
+    
+    def test_logging_yaml_syntax_error_with_line_number(self, caplog):
+        """Test that YAML syntax errors log with line number context (Story 1.7, AC: 1, 5)."""
+        import logging
+        logging.basicConfig(level=logging.ERROR)
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write("""
+models:
+  - id: "test"
+    name: "Test"
+    endpoint: "owner/model:version"
+  - id: "test2"
+    name: "Test 2"
+    endpoint: "owner/model2:version" [unclosed bracket
+""")
+            temp_path = f.name
+        
+        try:
+            try:
+                load_models_config(temp_path)
+            except yaml.YAMLError:
+                pass
+            
+            # Verify error was logged with context
             assert any("error" in record.levelname.lower() for record in caplog.records)
         finally:
             os.unlink(temp_path)

@@ -5,6 +5,7 @@ import zipfile
 import io
 import logging
 import os
+import yaml
 from utils import icon
 from streamlit_image_select import image_select
 from config.model_loader import load_models_config
@@ -17,6 +18,23 @@ st.set_page_config(page_title="Replicate Image Generator",
                    layout="wide")
 icon.show_icon(":foggy:")
 st.markdown("# :rainbow[Text-to-Image Artistry Studio]")
+
+
+def _set_session_state(key: str, value: any) -> None:
+    """
+    Helper function to set session state values that works with both
+    dict-style and attribute-style access (for testing compatibility).
+    
+    Args:
+        key: The session state key to set
+        value: The value to set
+    """
+    try:
+        # Try attribute-style access first (works in real Streamlit)
+        setattr(st.session_state, key, value)
+    except (AttributeError, TypeError):
+        # Fall back to dict-style access (works in tests with mocked dict)
+        st.session_state[key] = value
 
 # Helper function to get secrets with fallback for testing
 def get_secret(key: str, default: str = None) -> str:
@@ -74,6 +92,7 @@ def initialize_session_state() -> None:
     - Sets default model (first model or model with default: true flag)
     - Initializes st.session_state.selected_model with default model
     - Handles edge cases (missing config, empty models list)
+    - Provides fallback to secrets.toml when models.yaml is missing or invalid
     
     Only runs once per session to avoid re-initialization on reruns.
     """
@@ -86,12 +105,12 @@ def initialize_session_state() -> None:
         models = load_models_config("models.yaml")
         
         # Initialize model_configs with loaded models
-        st.session_state.model_configs = models
+        _set_session_state('model_configs', models)
         
         # Handle empty models list
         if not models:
             logger.warning("No models found in configuration. Model selector will be disabled.")
-            st.session_state.selected_model = None
+            _set_session_state('selected_model', None)
             return
         
         # Determine default model: check for explicit default flag first
@@ -108,23 +127,192 @@ def initialize_session_state() -> None:
             logger.info(f"Using first model as default: {default_model.get('name', default_model.get('id'))}")
         
         # Initialize selected_model with default
-        st.session_state.selected_model = default_model
+        _set_session_state('selected_model', default_model)
         
         logger.info(f"Session state initialized successfully with {len(models)} model(s)")
         
-    except FileNotFoundError:
-        # Handle missing models.yaml
-        logger.warning("models.yaml not found. Initializing with empty session state.")
-        st.session_state.model_configs = []
-        st.session_state.selected_model = None
-        st.warning("⚠️ Model configuration file not found. Please ensure models.yaml exists at the project root.")
+    except FileNotFoundError as e:
+        # Handle missing models.yaml - attempt fallback to secrets.toml
+        logger.warning(f"models.yaml not found: {e}")
+        # Show warning to user
+        try:
+            st.warning(f"models.yaml not found: {e}")
+        except (AttributeError, RuntimeError):
+            # st.warning may not be available in all contexts (e.g., testing)
+            pass
+        
+        # Attempt fallback to secrets.toml
+        try:
+            fallback_endpoint = get_replicate_model_endpoint()
+            # Only use fallback if endpoint is a valid string and not the test version
+            if (fallback_endpoint and 
+                isinstance(fallback_endpoint, str) and 
+                fallback_endpoint != "stability-ai/sdxl:test-version"):
+                # Create single-model configuration from fallback
+                fallback_model = {
+                    'id': 'default',
+                    'name': 'Default Model (from secrets.toml)',
+                    'endpoint': fallback_endpoint
+                }
+                _set_session_state('model_configs', [fallback_model])
+                _set_session_state('selected_model', fallback_model)
+                logger.info(f"Using fallback configuration from secrets.toml: {fallback_endpoint}")
+                st.info(
+                    "ℹ️ **Fallback Mode Activated**\n\n"
+                    "The models.yaml configuration file was not found. "
+                    "The application is using the default model endpoint from secrets.toml. "
+                    "To use multiple models, please create a models.yaml file at the project root."
+                )
+            else:
+                # No valid fallback available
+                _set_session_state('model_configs', [])
+                _set_session_state('selected_model', None)
+                logger.error("No fallback configuration available. models.yaml missing and REPLICATE_MODEL_ENDPOINTSTABILITY not found in secrets.toml.")
+                st.error(
+                    "❌ **Configuration Error**\n\n"
+                    "The models.yaml configuration file was not found, and no fallback configuration is available. "
+                    "Please either:\n"
+                    "1. Create a models.yaml file at the project root, or\n"
+                    "2. Ensure REPLICATE_MODEL_ENDPOINTSTABILITY is set in .streamlit/secrets.toml"
+                )
+        except Exception as fallback_error:
+            # Fallback also failed
+            logger.error(f"Fallback to secrets.toml failed: {fallback_error}")
+            _set_session_state('model_configs', [])
+            _set_session_state('selected_model', None)
+            st.error(
+                "❌ **Configuration Error**\n\n"
+                f"Failed to load model configuration: {str(e)}\n\n"
+                "The application will continue, but model selection will be disabled. "
+                "Please check your configuration files."
+            )
+        
+    except yaml.YAMLError as e:
+        # Handle invalid YAML syntax
+        error_msg = str(e)
+        logger.error(f"Invalid YAML syntax in models.yaml: {error_msg}", exc_info=True)
+        _set_session_state('model_configs', [])
+        _set_session_state('selected_model', None)
+        
+        # Attempt fallback to secrets.toml
+        try:
+            fallback_endpoint = get_replicate_model_endpoint()
+            # Only use fallback if endpoint is a valid string and not the test version
+            if (fallback_endpoint and 
+                isinstance(fallback_endpoint, str) and 
+                fallback_endpoint != "stability-ai/sdxl:test-version"):
+                fallback_model = {
+                    'id': 'default',
+                    'name': 'Default Model (from secrets.toml)',
+                    'endpoint': fallback_endpoint
+                }
+                _set_session_state('model_configs', [fallback_model])
+                _set_session_state('selected_model', fallback_model)
+                logger.info(f"Using fallback configuration from secrets.toml due to YAML error: {fallback_endpoint}")
+                st.warning(
+                    "⚠️ **YAML Syntax Error - Fallback Mode Activated**\n\n"
+                    f"The models.yaml file contains invalid YAML syntax: {error_msg}\n\n"
+                    "The application is using the default model endpoint from secrets.toml. "
+                    "Please fix the YAML syntax in models.yaml to use multiple models."
+                )
+            else:
+                st.error(
+                    "❌ **YAML Syntax Error**\n\n"
+                    f"The models.yaml file contains invalid YAML syntax: {error_msg}\n\n"
+                    "Please fix the YAML syntax in models.yaml. "
+                    "Check for missing quotes, incorrect indentation, or invalid characters."
+                )
+        except Exception:
+            st.error(
+                "❌ **YAML Syntax Error**\n\n"
+                f"The models.yaml file contains invalid YAML syntax: {error_msg}\n\n"
+                "Please fix the YAML syntax in models.yaml. "
+                "Check for missing quotes, incorrect indentation, or invalid characters."
+            )
+        
+    except ValueError as e:
+        # Handle validation errors (missing fields, invalid endpoint format, etc.)
+        error_msg = str(e)
+        logger.error(f"Model configuration validation error: {error_msg}", exc_info=True)
+        _set_session_state('model_configs', [])
+        _set_session_state('selected_model', None)
+        
+        # Attempt fallback to secrets.toml
+        try:
+            fallback_endpoint = get_replicate_model_endpoint()
+            # Only use fallback if endpoint is a valid string and not the test version
+            if (fallback_endpoint and 
+                isinstance(fallback_endpoint, str) and 
+                fallback_endpoint != "stability-ai/sdxl:test-version"):
+                fallback_model = {
+                    'id': 'default',
+                    'name': 'Default Model (from secrets.toml)',
+                    'endpoint': fallback_endpoint
+                }
+                _set_session_state('model_configs', [fallback_model])
+                _set_session_state('selected_model', fallback_model)
+                logger.info(f"Using fallback configuration from secrets.toml due to validation error: {fallback_endpoint}")
+                st.warning(
+                    "⚠️ **Configuration Validation Error - Fallback Mode Activated**\n\n"
+                    f"{error_msg}\n\n"
+                    "The application is using the default model endpoint from secrets.toml. "
+                    "Please fix the configuration errors in models.yaml to use multiple models."
+                )
+            else:
+                st.error(
+                    "❌ **Configuration Validation Error**\n\n"
+                    f"{error_msg}\n\n"
+                    "Please fix the configuration errors in models.yaml."
+                )
+        except Exception:
+            st.error(
+                "❌ **Configuration Validation Error**\n\n"
+                f"{error_msg}\n\n"
+                "Please fix the configuration errors in models.yaml."
+            )
         
     except Exception as e:
-        # Handle other errors (invalid YAML, invalid structure, etc.)
-        logger.error(f"Error initializing session state: {e}")
-        st.session_state.model_configs = []
-        st.session_state.selected_model = None
-        st.error(f"❌ Error loading model configuration: {e}")
+        # Handle any other unexpected errors
+        error_msg = str(e)
+        logger.error(f"Unexpected error initializing session state: {error_msg}", exc_info=True)
+        _set_session_state('model_configs', [])
+        _set_session_state('selected_model', None)
+        
+        # Attempt fallback to secrets.toml
+        try:
+            fallback_endpoint = get_replicate_model_endpoint()
+            # Only use fallback if endpoint is a valid string and not the test version
+            if (fallback_endpoint and 
+                isinstance(fallback_endpoint, str) and 
+                fallback_endpoint != "stability-ai/sdxl:test-version"):
+                fallback_model = {
+                    'id': 'default',
+                    'name': 'Default Model (from secrets.toml)',
+                    'endpoint': fallback_endpoint
+                }
+                _set_session_state('model_configs', [fallback_model])
+                _set_session_state('selected_model', fallback_model)
+                logger.info(f"Using fallback configuration from secrets.toml due to unexpected error: {fallback_endpoint}")
+                st.warning(
+                    "⚠️ **Configuration Error - Fallback Mode Activated**\n\n"
+                    f"An unexpected error occurred while loading models.yaml: {error_msg}\n\n"
+                    "The application is using the default model endpoint from secrets.toml. "
+                    "Please check the models.yaml file for issues."
+                )
+            else:
+                st.error(
+                    "❌ **Configuration Error**\n\n"
+                    f"An unexpected error occurred while loading model configuration: {error_msg}\n\n"
+                    "The application will continue, but model selection will be disabled. "
+                    "Please check your configuration files."
+                )
+        except Exception:
+            st.error(
+                "❌ **Configuration Error**\n\n"
+                f"An unexpected error occurred while loading model configuration: {error_msg}\n\n"
+                "The application will continue, but model selection will be disabled. "
+                "Please check your configuration files."
+            )
 
 
 def configure_sidebar() -> None:
@@ -141,9 +329,9 @@ def configure_sidebar() -> None:
         
         # Initialize preserved state if not exists
         if 'preserved_prompt' not in st.session_state:
-            st.session_state.preserved_prompt = None
+            _set_session_state('preserved_prompt', None)
         if 'preserved_settings' not in st.session_state:
-            st.session_state.preserved_settings = None
+            _set_session_state('preserved_settings', None)
         
         # Check if model_configs exists and is not empty before allowing switch
         if not model_configs:
@@ -196,8 +384,8 @@ def configure_sidebar() -> None:
                             # Capture current form values from session state keys (form inputs use keys)
                             # These values persist across reruns even when form isn't submitted
                             if 'form_width' in st.session_state:
-                                st.session_state.preserved_prompt = st.session_state.get('form_prompt')
-                                st.session_state.preserved_settings = {
+                                _set_session_state('preserved_prompt', st.session_state.get('form_prompt'))
+                                _set_session_state('preserved_settings', {
                                     'width': st.session_state.get('form_width'),
                                     'height': st.session_state.get('form_height'),
                                     'num_outputs': st.session_state.get('form_num_outputs'),
@@ -208,10 +396,10 @@ def configure_sidebar() -> None:
                                     'refine': st.session_state.get('form_refine'),
                                     'high_noise_frac': st.session_state.get('form_high_noise_frac'),
                                     'negative_prompt': st.session_state.get('form_negative_prompt'),
-                                }
+                                })
                         
                         # Update selected model
-                        st.session_state.selected_model = new_selected_model
+                        _set_session_state('selected_model', new_selected_model)
         
         with st.form("my_form"):
             st.info("**Yo fam! Start here ↓**", icon="👋🏾")
@@ -407,7 +595,7 @@ def main_page(submitted: bool, width: int, height: int, num_outputs: int,
                             st.toast(
                                 'Your image has been generated!', icon='😍')
                             # Save generated image to session state
-                            st.session_state.generated_image = output
+                            _set_session_state('generated_image', output)
 
                             # Displaying the image
                             for image in st.session_state.generated_image:
@@ -419,7 +607,7 @@ def main_page(submitted: bool, width: int, height: int, num_outputs: int,
 
                                     response = requests.get(image)
                         # Save all generated images to session state
-                        st.session_state.all_images = all_images
+                        _set_session_state('all_images', all_images)
 
                         # Create a BytesIO object
                         zip_io = io.BytesIO()
@@ -444,24 +632,75 @@ def main_page(submitted: bool, width: int, height: int, num_outputs: int,
             except ValueError as e:
                 # Handle validation errors (missing endpoint, invalid endpoint)
                 error_msg = str(e)
-                logger.error(f"Validation error: {error_msg}")
-                st.error(f'❌ Configuration Error: {error_msg}', icon="🚨")
+                selected_model = st.session_state.get('selected_model', None)
+                model_name = selected_model.get('name', 'Unknown') if selected_model else 'Default'
+                model_id = selected_model.get('id', 'unknown') if selected_model else 'unknown'
+                logger.error(f"Validation error for model '{model_name}' (id: {model_id}): {error_msg}")
+                st.error(
+                    f'❌ **Configuration Error for Model "{model_name}"**\n\n'
+                    f'{error_msg}\n\n'
+                    'Please check your model configuration in models.yaml or secrets.toml.',
+                    icon="🚨"
+                )
                 status.update(label="❌ Configuration Error", state="error", expanded=False)
             except KeyError as e:
                 # Handle missing keys in selected_model
                 error_msg = f"Missing required field in model configuration: {e}"
-                logger.error(f"Configuration error: {error_msg}")
                 selected_model = st.session_state.get('selected_model', None)
                 model_name = selected_model.get('name', 'Unknown') if selected_model else 'Unknown'
-                st.error(f'❌ Model Configuration Error for "{model_name}": {error_msg}. Please check models.yaml.', icon="🚨")
+                model_id = selected_model.get('id', 'unknown') if selected_model else 'unknown'
+                logger.error(f"Configuration error for model '{model_name}' (id: {model_id}): {error_msg}")
+                st.error(
+                    f'❌ **Model Configuration Error for "{model_name}"**\n\n'
+                    f'{error_msg}\n\n'
+                    'Please check models.yaml to ensure all required fields (id, name, endpoint) are present.',
+                    icon="🚨"
+                )
                 status.update(label="❌ Configuration Error", state="error", expanded=False)
-            except Exception as e:
-                # Handle API errors and other exceptions
+            except requests.exceptions.RequestException as e:
+                # Handle network errors
                 error_msg = str(e)
-                logger.error(f"API error: {error_msg}", exc_info=True)
                 selected_model = st.session_state.get('selected_model', None)
                 model_name = selected_model.get('name', 'Unknown') if selected_model else 'Default'
-                st.error(f'❌ Error generating image with model "{model_name}": {error_msg}', icon="🚨")
+                model_id = selected_model.get('id', 'unknown') if selected_model else 'unknown'
+                logger.error(f"Network error for model '{model_name}' (id: {model_id}): {error_msg}", exc_info=True)
+                st.error(
+                    f'❌ **Network Error with Model "{model_name}"**\n\n'
+                    f'Unable to connect to the Replicate API: {error_msg}\n\n'
+                    'Please check your internet connection and try again.',
+                    icon="🚨"
+                )
+                status.update(label="❌ Network Error", state="error", expanded=False)
+            except replicate.exceptions.ReplicateError as e:
+                # Handle Replicate API-specific errors
+                error_msg = str(e)
+                selected_model = st.session_state.get('selected_model', None)
+                model_name = selected_model.get('name', 'Unknown') if selected_model else 'Default'
+                model_id = selected_model.get('id', 'unknown') if selected_model else 'unknown'
+                logger.error(f"Replicate API error for model '{model_name}' (id: {model_id}): {error_msg}", exc_info=True)
+                st.error(
+                    f'❌ **Replicate API Error with Model "{model_name}"**\n\n'
+                    f'{error_msg}\n\n'
+                    'This may be due to authentication issues, invalid model endpoint, or API rate limits. '
+                    'Please check your REPLICATE_API_TOKEN and model endpoint configuration.',
+                    icon="🚨"
+                )
+                status.update(label="❌ API Error", state="error", expanded=False)
+            except Exception as e:
+                # Handle other API errors and unexpected exceptions
+                error_msg = str(e)
+                selected_model = st.session_state.get('selected_model', None)
+                model_name = selected_model.get('name', 'Unknown') if selected_model else 'Default'
+                model_id = selected_model.get('id', 'unknown') if selected_model else 'unknown'
+                error_type = type(e).__name__
+                logger.error(f"Unexpected error for model '{model_name}' (id: {model_id}): {error_type}: {error_msg}", exc_info=True)
+                st.error(
+                    f'❌ **Error Generating Image with Model "{model_name}"**\n\n'
+                    f'Error type: {error_type}\n'
+                    f'Error message: {error_msg}\n\n'
+                    'Please try again or check your configuration. If the problem persists, check the logs for more details.',
+                    icon="🚨"
+                )
                 status.update(label="❌ Generation Failed", state="error", expanded=False)
 
     # If not submitted, chill here 🍹

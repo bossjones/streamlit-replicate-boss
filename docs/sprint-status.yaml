@@ -44,7 +44,7 @@ development_status:
   1-4-create-model-selector-ui-component: done
   1-5-implement-basic-model-switching: done
   1-6-integrate-selected-model-endpoint-with-api-calls: done
-  1-7-handle-configuration-errors-and-edge-cases: backlog
+  1-7-handle-configuration-errors-and-edge-cases: done
   epic-1-retrospective: optional
 
   # Epic 2: Preset System & Enhanced Model Switching
