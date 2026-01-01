@@ -494,7 +494,7 @@ class TestMainPage:
     @pytest.mark.slow
     def test_main_page_with_submitted_form(self, mock_streamlit_secrets, mock_replicate_run, mock_requests_get):
         """[P1] Test main_page generates images when form is submitted."""
-        # GIVEN: Form submitted with valid parameters
+        # GIVEN: Form submitted with valid parameters and selected model
         submitted = True
         width = 1024
         height = 1024
@@ -508,14 +508,26 @@ class TestMainPage:
         prompt = "test prompt"
         negative_prompt = "test negative prompt"
         
+        # Mock selected model
+        selected_model = {
+            'id': 'test-model',
+            'name': 'Test Model',
+            'endpoint': 'owner/model:version'
+        }
+        
         # Mock Replicate output
         mock_replicate_run.return_value = ["https://example.com/image.png"]
         
         # WHEN: Calling main_page with submitted form
         with patch('streamlit_app.st') as mock_st:
-            mock_st.empty.return_value.container.return_value = MagicMock()
+            mock_container = MagicMock()
+            mock_st.empty.return_value.container.return_value = mock_container
             mock_st.status.return_value.__enter__.return_value = MagicMock()
-            mock_st.session_state = {}
+            mock_st.session_state = {'selected_model': selected_model}
+            mock_st.get = lambda key, default=None: mock_st.session_state.get(key, default)
+            mock_st.toast = MagicMock()
+            mock_st.image = MagicMock()
+            mock_st.download_button = MagicMock()
             
             main_page(
                 submitted, width, height, num_outputs, scheduler,
@@ -523,8 +535,10 @@ class TestMainPage:
                 refine, high_noise_frac, prompt, negative_prompt
             )
             
-            # THEN: Replicate API should be called with correct parameters
+            # THEN: Replicate API should be called with correct endpoint and parameters
             mock_replicate_run.assert_called_once()
+            # Verify endpoint is from selected model
+            assert mock_replicate_run.call_args[0][0] == 'owner/model:version'
             call_kwargs = mock_replicate_run.call_args[1]['input']
             assert call_kwargs['prompt'] == prompt
             assert call_kwargs['width'] == width
@@ -612,6 +626,253 @@ class TestMainPage:
             assert 'generated_image' in mock_st.session_state
             assert 'all_images' in mock_st.session_state
             assert len(mock_st.session_state['all_images']) == num_outputs
+    
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_main_page_uses_selected_model_endpoint(self, mock_streamlit_secrets, mock_replicate_run, mock_requests_get):
+        """[P1] Test main_page uses selected model endpoint from session state (AC: 1, 2)."""
+        # GIVEN: Form submitted with selected model in session state
+        submitted = True
+        selected_model = {
+            'id': 'helldiver',
+            'name': 'Helldiver Model',
+            'endpoint': 'owner/helldiver:version',
+            'trigger_words': ['helldiver'],
+            'default_settings': {}
+        }
+        mock_replicate_run.return_value = ["https://example.com/image.png"]
+        
+        # WHEN: Calling main_page with selected model
+        with patch('streamlit_app.st') as mock_st:
+            mock_container = MagicMock()
+            mock_st.empty.return_value.container.return_value = mock_container
+            mock_st.status.return_value.__enter__.return_value = MagicMock()
+            mock_st.session_state = {'selected_model': selected_model}
+            mock_st.get = lambda key, default=None: mock_st.session_state.get(key, default)
+            mock_st.toast = MagicMock()
+            mock_st.image = MagicMock()
+            mock_st.download_button = MagicMock()
+            
+            main_page(
+                submitted, 1024, 1024, 1, "DDIM",
+                50, 7.5, 0.8, "expert_ensemble_refiner",
+                0.8, "test", "test"
+            )
+            
+            # THEN: Replicate API should be called with selected model endpoint
+            mock_replicate_run.assert_called_once()
+            call_args = mock_replicate_run.call_args
+            assert call_args[0][0] == 'owner/helldiver:version'
+    
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_main_page_uses_different_model_endpoints(self, mock_streamlit_secrets, mock_replicate_run, mock_requests_get):
+        """[P1] Test main_page uses correct endpoint when switching models (AC: 2)."""
+        # GIVEN: Multiple model configurations
+        models = [
+            {'id': 'sdxl', 'name': 'SDXL', 'endpoint': 'stability-ai/sdxl:version'},
+            {'id': 'helldiver', 'name': 'Helldiver', 'endpoint': 'owner/helldiver:version'},
+            {'id': 'starship', 'name': 'Starship Trooper', 'endpoint': 'owner/starship-trooper:version'}
+        ]
+        mock_replicate_run.return_value = ["https://example.com/image.png"]
+        
+        # WHEN: Calling main_page with each model
+        with patch('streamlit_app.st') as mock_st:
+            mock_container = MagicMock()
+            mock_st.empty.return_value.container.return_value = mock_container
+            mock_st.status.return_value.__enter__.return_value = MagicMock()
+            mock_st.get = lambda key, default=None: mock_st.session_state.get(key, default)
+            mock_st.toast = MagicMock()
+            mock_st.image = MagicMock()
+            mock_st.download_button = MagicMock()
+            
+            for model in models:
+                mock_st.session_state = {'selected_model': model}
+                main_page(
+                    True, 1024, 1024, 1, "DDIM",
+                    50, 7.5, 0.8, "expert_ensemble_refiner",
+                    0.8, "test", "test"
+                )
+            
+            # THEN: Each API call should use correct endpoint
+            assert mock_replicate_run.call_count == 3
+            call_endpoints = [call[0][0] for call in mock_replicate_run.call_args_list]
+            assert call_endpoints == ['stability-ai/sdxl:version', 'owner/helldiver:version', 'owner/starship-trooper:version']
+    
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_main_page_fallback_when_selected_model_missing(self, mock_streamlit_secrets, mock_replicate_run, mock_requests_get):
+        """[P1] Test main_page falls back to secrets.toml when selected_model is missing (AC: 5)."""
+        # GIVEN: Form submitted but selected_model is None
+        submitted = True
+        mock_replicate_run.return_value = ["https://example.com/image.png"]
+        
+        # WHEN: Calling main_page without selected_model
+        with patch('streamlit_app.st') as mock_st, \
+             patch('streamlit_app.get_replicate_model_endpoint') as mock_get_endpoint:
+            mock_get_endpoint.return_value = 'stability-ai/sdxl:test-version'
+            mock_container = MagicMock()
+            mock_st.empty.return_value.container.return_value = mock_container
+            mock_st.status.return_value.__enter__.return_value = MagicMock()
+            mock_st.session_state = {}  # No selected_model
+            mock_st.get = lambda key, default=None: mock_st.session_state.get(key, default)
+            mock_st.warning = MagicMock()
+            mock_st.toast = MagicMock()
+            mock_st.image = MagicMock()
+            mock_st.download_button = MagicMock()
+            
+            main_page(
+                submitted, 1024, 1024, 1, "DDIM",
+                50, 7.5, 0.8, "expert_ensemble_refiner",
+                0.8, "test", "test"
+            )
+            
+            # THEN: Should use fallback endpoint from secrets
+            mock_get_endpoint.assert_called_once()
+            mock_replicate_run.assert_called_once()
+            assert mock_replicate_run.call_args[0][0] == 'stability-ai/sdxl:test-version'
+            # Warning should be displayed
+            mock_st.warning.assert_called()
+    
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_main_page_fallback_when_endpoint_missing(self, mock_streamlit_secrets, mock_replicate_run, mock_requests_get):
+        """[P1] Test main_page falls back when selected_model has no endpoint (AC: 5)."""
+        # GIVEN: Form submitted but selected_model missing endpoint
+        submitted = True
+        selected_model = {
+            'id': 'test-model',
+            'name': 'Test Model',
+            # Missing 'endpoint' key
+        }
+        mock_replicate_run.return_value = ["https://example.com/image.png"]
+        
+        # WHEN: Calling main_page with invalid selected_model
+        with patch('streamlit_app.st') as mock_st, \
+             patch('streamlit_app.get_replicate_model_endpoint') as mock_get_endpoint:
+            mock_get_endpoint.return_value = 'stability-ai/sdxl:test-version'
+            mock_container = MagicMock()
+            mock_st.empty.return_value.container.return_value = mock_container
+            mock_st.status.return_value.__enter__.return_value = MagicMock()
+            mock_st.session_state = {'selected_model': selected_model}
+            mock_st.get = lambda key, default=None: mock_st.session_state.get(key, default)
+            mock_st.warning = MagicMock()
+            mock_st.toast = MagicMock()
+            mock_st.image = MagicMock()
+            mock_st.download_button = MagicMock()
+            
+            main_page(
+                submitted, 1024, 1024, 1, "DDIM",
+                50, 7.5, 0.8, "expert_ensemble_refiner",
+                0.8, "test", "test"
+            )
+            
+            # THEN: Should use fallback endpoint
+            mock_get_endpoint.assert_called_once()
+            mock_replicate_run.assert_called_once()
+            assert mock_replicate_run.call_args[0][0] == 'stability-ai/sdxl:test-version'
+    
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_main_page_handles_invalid_endpoint(self, mock_streamlit_secrets, mock_replicate_run):
+        """[P1] Test main_page handles invalid endpoint gracefully (AC: 4)."""
+        # GIVEN: Form submitted with invalid endpoint (empty string)
+        submitted = True
+        selected_model = {
+            'id': 'test-model',
+            'name': 'Test Model',
+            'endpoint': ''  # Invalid empty endpoint
+        }
+        
+        # WHEN: Calling main_page with invalid endpoint
+        with patch('streamlit_app.st') as mock_st:
+            mock_container = MagicMock()
+            mock_st.empty.return_value.container.return_value = mock_container
+            mock_st.status.return_value.__enter__.return_value = MagicMock()
+            mock_st.status.return_value.__exit__ = MagicMock(return_value=None)
+            mock_st.session_state = {'selected_model': selected_model}
+            mock_st.get = lambda key, default=None: mock_st.session_state.get(key, default)
+            mock_st.error = MagicMock()
+            
+            main_page(
+                submitted, 1024, 1024, 1, "DDIM",
+                50, 7.5, 0.8, "expert_ensemble_refiner",
+                0.8, "test", "test"
+            )
+            
+            # THEN: Should display error and not call API
+            mock_st.error.assert_called()
+            mock_replicate_run.assert_not_called()
+    
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_main_page_handles_api_error_with_model_name(self, mock_streamlit_secrets, mock_requests_get):
+        """[P1] Test main_page displays model name in error message when API fails (AC: 4)."""
+        # GIVEN: Form submitted but API raises exception
+        submitted = True
+        selected_model = {
+            'id': 'helldiver',
+            'name': 'Helldiver Model',
+            'endpoint': 'owner/helldiver:version'
+        }
+        
+        with patch('streamlit_app.replicate.run') as mock_run:
+            mock_run.side_effect = Exception("API connection failed")
+            
+            # WHEN: Calling main_page
+            with patch('streamlit_app.st') as mock_st:
+                mock_container = MagicMock()
+                mock_st.empty.return_value.container.return_value = mock_container
+                mock_st.status.return_value.__enter__.return_value = MagicMock()
+                mock_st.status.return_value.__exit__ = MagicMock(return_value=None)
+                mock_st.session_state = {'selected_model': selected_model}
+                mock_st.get = lambda key, default=None: mock_st.session_state.get(key, default)
+                mock_st.error = MagicMock()
+                
+                main_page(
+                    submitted, 1024, 1024, 1, "DDIM",
+                    50, 7.5, 0.8, "expert_ensemble_refiner",
+                    0.8, "test", "test"
+                )
+                
+                # THEN: Error message should include model name
+                mock_st.error.assert_called()
+                error_call = mock_st.error.call_args[0][0]
+                assert 'Helldiver Model' in error_call or 'helldiver' in error_call.lower()
+    
+    @pytest.mark.integration
+    @pytest.mark.slow
+    def test_main_page_displays_images_correctly_all_models(self, mock_streamlit_secrets, mock_replicate_run, mock_requests_get):
+        """[P1] Test main_page displays images correctly for all models (AC: 3)."""
+        # GIVEN: Form submitted with different models
+        submitted = True
+        models = [
+            {'id': 'sdxl', 'name': 'SDXL', 'endpoint': 'stability-ai/sdxl:version'},
+            {'id': 'helldiver', 'name': 'Helldiver', 'endpoint': 'owner/helldiver:version'}
+        ]
+        mock_replicate_run.return_value = ["https://example.com/image.png"]
+        
+        # WHEN: Calling main_page with each model
+        with patch('streamlit_app.st') as mock_st:
+            mock_container = MagicMock()
+            mock_st.empty.return_value.container.return_value = mock_container
+            mock_st.status.return_value.__enter__.return_value = MagicMock()
+            mock_st.get = lambda key, default=None: mock_st.session_state.get(key, default)
+            mock_st.toast = MagicMock()
+            mock_st.image = MagicMock()
+            mock_st.download_button = MagicMock()
+            
+            for model in models:
+                mock_st.session_state = {'selected_model': model}
+                main_page(
+                    submitted, 1024, 1024, 1, "DDIM",
+                    50, 7.5, 0.8, "expert_ensemble_refiner",
+                    0.8, "test", "test"
+                )
+            
+            # THEN: Images should be displayed for all models
+            assert mock_st.image.call_count == len(models)
+            assert mock_st.toast.call_count == len(models)
 
 
 class TestMain:
@@ -955,16 +1216,26 @@ class TestMainPageEdgeCases:
     @pytest.mark.integration
     def test_main_page_passes_correct_prompt_strength_parameter(self, mock_streamlit_secrets, mock_replicate_run, mock_requests_get):
         """[P2] Test main_page passes prompt_strength parameter correctly (note: typo in code 'prompt_stregth')."""
-        # GIVEN: Form submitted with specific prompt_strength
+        # GIVEN: Form submitted with specific prompt_strength and selected model
         submitted = True
         prompt_strength = 0.9
+        selected_model = {
+            'id': 'test-model',
+            'name': 'Test Model',
+            'endpoint': 'owner/model:version'
+        }
+        mock_replicate_run.return_value = ["https://example.com/image.png"]
         
         # WHEN: Calling main_page
         with patch('streamlit_app.st') as mock_st:
             mock_container = MagicMock()
             mock_st.empty.return_value.container.return_value = mock_container
             mock_st.status.return_value.__enter__.return_value = MagicMock()
-            mock_st.session_state = {}
+            mock_st.session_state = {'selected_model': selected_model}
+            mock_st.get = lambda key, default=None: mock_st.session_state.get(key, default)
+            mock_st.toast = MagicMock()
+            mock_st.image = MagicMock()
+            mock_st.download_button = MagicMock()
             
             main_page(
                 submitted, 1024, 1024, 1, "DDIM",
@@ -973,6 +1244,7 @@ class TestMainPageEdgeCases:
             )
             
             # THEN: Replicate API should be called with prompt_strength (note: code has typo 'prompt_stregth')
+            mock_replicate_run.assert_called_once()
             call_kwargs = mock_replicate_run.call_args[1]['input']
             # Note: The actual code uses 'prompt_stregth' (typo), so we check for that
             assert 'prompt_stregth' in call_kwargs or 'prompt_strength' in call_kwargs
