@@ -365,11 +365,31 @@ def main_page(submitted: bool, width: int, height: int, num_outputs: int,
             try:
                 # Only call the API if the "Submit" button was pressed
                 if submitted:
+                    # Get the selected model endpoint with backward compatibility fallback
+                    selected_model = st.session_state.get('selected_model', None)
+                    
+                    # Determine endpoint: use selected model endpoint if available, otherwise fallback
+                    if selected_model and isinstance(selected_model, dict) and 'endpoint' in selected_model:
+                        model_endpoint = selected_model['endpoint']
+                        model_name = selected_model.get('name', selected_model.get('id', 'Unknown'))
+                        logger.info(f"Using selected model endpoint: {model_endpoint} (Model: {model_name})")
+                    else:
+                        # Backward compatibility: fallback to secrets.toml endpoint
+                        model_endpoint = get_replicate_model_endpoint()
+                        model_name = "Default (from secrets.toml)"
+                        logger.info(f"Using fallback endpoint: {model_endpoint} (selected_model not available)")
+                        if selected_model is None:
+                            st.warning("⚠️ No model selected. Using default endpoint from secrets.toml.")
+                    
+                    # Validate endpoint is not empty
+                    if not model_endpoint or not isinstance(model_endpoint, str) or not model_endpoint.strip():
+                        raise ValueError(f"Invalid model endpoint: {model_endpoint}. Cannot proceed with image generation.")
+                    
                     # Calling the replicate API to get the image
                     with generated_images_placeholder.container():
                         all_images = []  # List to store all generated images
                         output = replicate.run(
-                            get_replicate_model_endpoint(),
+                            model_endpoint,
                             input={
                                 "prompt": prompt,
                                 "width": width,
@@ -421,9 +441,28 @@ def main_page(submitted: bool, width: int, height: int, num_outputs: int,
                             ":red[**Download All Images**]", data=zip_io.getvalue(), file_name="output_files.zip", mime="application/zip", use_container_width=True)
                 status.update(label="✅ Images generated!",
                               state="complete", expanded=False)
+            except ValueError as e:
+                # Handle validation errors (missing endpoint, invalid endpoint)
+                error_msg = str(e)
+                logger.error(f"Validation error: {error_msg}")
+                st.error(f'❌ Configuration Error: {error_msg}', icon="🚨")
+                status.update(label="❌ Configuration Error", state="error", expanded=False)
+            except KeyError as e:
+                # Handle missing keys in selected_model
+                error_msg = f"Missing required field in model configuration: {e}"
+                logger.error(f"Configuration error: {error_msg}")
+                selected_model = st.session_state.get('selected_model', None)
+                model_name = selected_model.get('name', 'Unknown') if selected_model else 'Unknown'
+                st.error(f'❌ Model Configuration Error for "{model_name}": {error_msg}. Please check models.yaml.', icon="🚨")
+                status.update(label="❌ Configuration Error", state="error", expanded=False)
             except Exception as e:
-                print(e)
-                st.error(f'Encountered an error: {e}', icon="🚨")
+                # Handle API errors and other exceptions
+                error_msg = str(e)
+                logger.error(f"API error: {error_msg}", exc_info=True)
+                selected_model = st.session_state.get('selected_model', None)
+                model_name = selected_model.get('name', 'Unknown') if selected_model else 'Default'
+                st.error(f'❌ Error generating image with model "{model_name}": {error_msg}', icon="🚨")
+                status.update(label="❌ Generation Failed", state="error", expanded=False)
 
     # If not submitted, chill here 🍹
     else:

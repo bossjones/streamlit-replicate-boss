@@ -1,0 +1,263 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>6</storyId>
+    <title>Integrate Selected Model Endpoint with API Calls</title>
+    <status>drafted</status>
+    <generatedAt>2026-01-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-6-integrate-selected-model-endpoint-with-api-calls.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>image generation to use the selected model's endpoint</iWant>
+    <soThat>I can generate images with different models</soThat>
+    <tasks>
+      <task id="1" ac="1,2">
+        <title>Modify API call to use selected model endpoint</title>
+        <subtasks>
+          <subtask>Replace `get_replicate_model_endpoint()` call with `st.session_state.selected_model['endpoint']` in `main_page()` function</subtask>
+          <subtask>Ensure endpoint is accessed safely using `st.session_state.get()` or try/except</subtask>
+          <subtask>Verify API call uses correct endpoint for currently selected model</subtask>
+          <subtask>Testing: Verify API call uses selected model endpoint</subtask>
+          <subtask>Testing: Test with multiple different models to verify endpoint switching</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="3">
+        <title>Ensure generated images display correctly</title>
+        <subtasks>
+          <subtask>Verify image display logic works with all model outputs</subtask>
+          <subtask>Ensure image URL format is consistent across models</subtask>
+          <subtask>Test image display with different models (SDXL, helldiver, starship-trooper)</subtask>
+          <subtask>Testing: Verify images display correctly for all models</subtask>
+          <subtask>Testing: Test with models that return different output formats</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="4">
+        <title>Implement error handling for endpoint issues</title>
+        <subtasks>
+          <subtask>Handle case where `selected_model` is None or missing</subtask>
+          <subtask>Handle case where `selected_model['endpoint']` is missing or invalid</subtask>
+          <subtask>Handle API errors when using invalid endpoint</subtask>
+          <subtask>Display user-friendly error messages with model name</subtask>
+          <subtask>Log errors appropriately for debugging</subtask>
+          <subtask>Testing: Test error handling for missing selected_model</subtask>
+          <subtask>Testing: Test error handling for invalid endpoint</subtask>
+          <subtask>Testing: Test error handling for API failures</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="5">
+        <title>Implement backward compatibility fallback</title>
+        <subtasks>
+          <subtask>Check if `st.session_state.selected_model` exists and has valid endpoint</subtask>
+          <subtask>If missing, fallback to `get_replicate_model_endpoint()` from secrets.toml</subtask>
+          <subtask>Ensure fallback behavior matches existing single-model behavior</subtask>
+          <subtask>Document fallback behavior in code comments</subtask>
+          <subtask>Testing: Test fallback behavior when selected_model is missing</subtask>
+          <subtask>Testing: Test fallback behavior when endpoint is invalid</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="6">
+        <title>Test with multiple models</title>
+        <subtasks>
+          <subtask>Test image generation with Stability AI SDXL (standard model)</subtask>
+          <subtask>Test image generation with helldiver (custom model)</subtask>
+          <subtask>Test image generation with starship-trooper (custom model)</subtask>
+          <subtask>Verify all models generate images successfully</subtask>
+          <subtask>Testing: Integration test with multiple models</subtask>
+          <subtask>Testing: Verify model switching and API endpoint changes work together</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Modify API call to use `st.session_state.selected_model['endpoint']` instead of hardcoded endpoint</ac>
+    <ac id="2">API call uses correct model endpoint for selected model</ac>
+    <ac id="3">Generated images display correctly for all models</ac>
+    <ac id="4">Error handling for invalid/missing endpoint</ac>
+    <ac id="5">Maintain backward compatibility: if no model selected, fallback to default or existing behavior</ac>
+    <ac id="6">Test with at least 2 different models (standard + custom)</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Story 1.6: Integrate Selected Model Endpoint with API Calls</section>
+        <snippet>As a user, I want image generation to use the selected model's endpoint, so that I can generate images with different models. Acceptance criteria include modifying API call to use selected model endpoint, error handling, backward compatibility, and testing with multiple models.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Integration & API</section>
+        <snippet>FR017: The system must use the selected model's endpoint when making Replicate API calls for image generation. FR018: The system must validate model endpoints before making API calls and provide user feedback for API errors. FR020: The system must maintain backward compatibility with existing single-model configuration (secrets.toml) while supporting new multi-model configuration.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec.md</path>
+        <title>Technical Specification</title>
+        <section>API Integration (Story 1.6)</section>
+        <snippet>Modify API call in `main_page()` function to use selected model endpoint. Current implementation uses `get_replicate_model_endpoint()` which returns hardcoded endpoint from secrets.toml. Replace with `st.session_state.selected_model['endpoint']`. Error handling: If `selected_model` missing → Fallback to `REPLICATE_MODEL_ENDPOINTSTABILITY` from secrets. If endpoint invalid → Show error message, don't crash.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Documentation</title>
+        <section>API Design</section>
+        <snippet>Replicate API Integration uses `replicate` Python client with token-based authentication. API call pattern: `replicate.run(endpoint, input={...})`. Endpoint should be dynamic based on selected model. Request parameters include prompt, width, height, num_outputs, scheduler, num_inference_steps, guidance_scale, prompt_strength, refine, high_noise_frac.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/1-5-implement-basic-model-switching.md</path>
+        <title>Story 1.5: Implement Basic Model Switching</title>
+        <section>Completion Notes List</section>
+        <snippet>Model switching logic implemented in `configure_sidebar()` function. State preservation captures form values (prompt and settings) before model switch and restores them after. Model selector dropdown updates `st.session_state.selected_model` when selection changes. Session state structure: `st.session_state.selected_model` contains single model dictionary with `id`, `name`, `endpoint`, `trigger_words`, and `default_settings` fields.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>streamlit_app.py</path>
+        <kind>main application</kind>
+        <symbol>main_page()</symbol>
+        <lines>341-430</lines>
+        <reason>Contains the Replicate API call that needs to be modified to use selected model endpoint. Current implementation at line 371-372 uses `get_replicate_model_endpoint()` which should be replaced with `st.session_state.selected_model['endpoint']`.</reason>
+      </artifact>
+      <artifact>
+        <path>streamlit_app.py</path>
+        <kind>helper function</kind>
+        <symbol>get_replicate_model_endpoint()</symbol>
+        <lines>53-55</lines>
+        <reason>Current function that returns hardcoded endpoint from secrets.toml. Should be used as fallback when `selected_model` is missing for backward compatibility.</reason>
+      </artifact>
+      <artifact>
+        <path>streamlit_app.py</path>
+        <kind>helper function</kind>
+        <symbol>get_secret()</symbol>
+        <lines>22-45</lines>
+        <reason>Helper function for accessing Streamlit secrets with fallback for testing. Used by `get_replicate_model_endpoint()` for backward compatibility fallback.</reason>
+      </artifact>
+      <artifact>
+        <path>streamlit_app.py</path>
+        <kind>initialization function</kind>
+        <symbol>initialize_session_state()</symbol>
+        <lines>67-128</lines>
+        <reason>Initializes `st.session_state.selected_model` with default model from configuration. This ensures `selected_model` is available when API call is made.</reason>
+      </artifact>
+      <artifact>
+        <path>config/model_loader.py</path>
+        <kind>configuration module</kind>
+        <symbol>load_models_config()</symbol>
+        <lines>10-105</lines>
+        <reason>Loads model configurations from models.yaml file. Returns list of model dictionaries with `endpoint` field that will be used in API calls.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/integration/test_streamlit_app.py</path>
+        <kind>test file</kind>
+        <symbol>TestMainPage</symbol>
+        <lines>490-585</lines>
+        <reason>Existing test class for `main_page()` function. Tests should be extended to verify API call uses selected model endpoint and handles error cases. Uses mocking patterns with `mock_replicate_run` fixture.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem>python</ecosystem>
+      <packages>
+        <package name="replicate" version=">=1.0.7">Replicate API client library for making image generation API calls</package>
+        <package name="streamlit" version=">=1.50.0">Web framework providing session state management and UI components</package>
+        <package name="requests" version=">=2.32.5">HTTP client for downloading generated images</package>
+        <package name="pyyaml" version=">=6.0.1">YAML parser for loading model configurations</package>
+      </packages>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>
+      <type>API Integration Pattern</type>
+      <description>Modify API call in `main_page()` function to use selected model endpoint. Current implementation uses `get_replicate_model_endpoint()` which returns hardcoded endpoint from secrets.toml. Replace with `st.session_state.selected_model['endpoint']`.</description>
+      <source>docs/tech-spec.md#API-Integration-(Story-1.6)</source>
+    </constraint>
+    <constraint>
+      <type>Error Handling Strategy</type>
+      <description>If `selected_model` missing → Fallback to `REPLICATE_MODEL_ENDPOINTSTABILITY` from secrets. If endpoint invalid → Show error message, don't crash. If API fails → Show user-friendly error with model name.</description>
+      <source>docs/tech-spec.md#API-Integration-(Story-1.6)</source>
+    </constraint>
+    <constraint>
+      <type>Backward Compatibility</type>
+      <description>Check for `models.yaml` existence. If missing, check `REPLICATE_MODEL_ENDPOINTSTABILITY` in secrets.toml. If found in secrets, create single-model config automatically. Fallback to existing hardcoded behavior if neither exists.</description>
+      <source>docs/tech-spec.md#Backward-Compatibility-Strategy</source>
+    </constraint>
+    <constraint>
+      <type>Session State Access</type>
+      <description>Access `st.session_state.selected_model` in `main_page()` function. Use safe access patterns with `st.session_state.get()` or try/except for defensive programming.</description>
+      <source>docs/tech-spec.md#Session-State-Structure</source>
+    </constraint>
+    <constraint>
+      <type>Testing Approach</type>
+      <description>Use Streamlit's AppTest framework for integration testing. Test API endpoint switching, error handling, backward compatibility. Mock Replicate API responses using `responses` or `requests-mock` libraries.</description>
+      <source>docs/tech-spec.md#Testing-Approach</source>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Replicate API</name>
+      <kind>REST API</kind>
+      <signature>replicate.run(endpoint: str, input: dict) -> List[str]</signature>
+      <path>streamlit_app.py:371</path>
+      <description>Replicate API call for image generation. Endpoint parameter should be dynamic based on selected model. Returns list of image URLs.</description>
+    </interface>
+    <interface>
+      <name>Session State Model</name>
+      <kind>Data Structure</kind>
+      <signature>st.session_state.selected_model: Dict[str, Any]</signature>
+      <path>streamlit_app.py:111</path>
+      <description>Dictionary containing selected model configuration with fields: `id`, `name`, `endpoint`, `trigger_words`, `default_settings`. Endpoint field contains Replicate API endpoint string.</description>
+    </interface>
+    <interface>
+      <name>Model Configuration Loader</name>
+      <kind>Function</kind>
+      <signature>load_models_config(file_path: str = "models.yaml") -> List[Dict[str, Any]]</signature>
+      <path>config/model_loader.py:10</path>
+      <description>Loads and validates model configurations from YAML file. Returns list of model dictionaries, each containing `endpoint` field for API calls.</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use Streamlit's AppTest framework for integration testing. Test API endpoint switching, error handling, backward compatibility. Mock Replicate API responses using `responses` or `requests-mock` libraries. Follow existing test patterns in `tests/integration/test_streamlit_app.py` with `TestMainPage` class. Use pytest markers: `@pytest.mark.integration` for integration tests, `@pytest.mark.slow` for tests that make API calls. Test structure: GIVEN/WHEN/THEN pattern with clear test descriptions.
+    </standards>
+    <locations>
+      <location>tests/integration/test_streamlit_app.py</location>
+      <location>tests/unit/</location>
+    </locations>
+    <ideas>
+      <test ac="1,2">
+        <title>Test API call uses selected model endpoint</title>
+        <description>Mock `st.session_state.selected_model` with different models and verify `replicate.run()` is called with correct endpoint for each model. Test with SDXL, helldiver, and starship-trooper models.</description>
+      </test>
+      <test ac="3">
+        <title>Test image display with different models</title>
+        <description>Mock API responses from different models and verify images display correctly. Test that image URL format is consistent and display logic handles all model outputs.</description>
+      </test>
+      <test ac="4">
+        <title>Test error handling for missing selected_model</title>
+        <description>Test that API call handles case where `st.session_state.selected_model` is None or missing. Verify fallback behavior and error messages are displayed.</description>
+      </test>
+      <test ac="4">
+        <title>Test error handling for invalid endpoint</title>
+        <description>Test that API call handles case where `selected_model['endpoint']` is missing or invalid. Verify error messages include model name and are user-friendly.</description>
+      </test>
+      <test ac="4">
+        <title>Test error handling for API failures</title>
+        <description>Mock API failures (exceptions, network errors) and verify error handling displays user-friendly messages without crashing the application.</description>
+      </test>
+      <test ac="5">
+        <title>Test backward compatibility fallback</title>
+        <description>Test that when `selected_model` is missing, API call falls back to `get_replicate_model_endpoint()` from secrets.toml. Verify fallback behavior matches existing single-model behavior.</description>
+      </test>
+      <test ac="6">
+        <title>Integration test with multiple models</title>
+        <description>Test complete flow: switch models, generate images with each model. Verify all models (SDXL, helldiver, starship-trooper) generate images successfully and endpoint switching works correctly.</description>
+      </test>
+    </ideas>
+  </tests>
+</story-context>
