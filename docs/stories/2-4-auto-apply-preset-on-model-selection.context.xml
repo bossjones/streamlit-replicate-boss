@@ -1,0 +1,135 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.4</storyId>
+    <title>Auto-Apply Preset on Model Selection</title>
+    <status>drafted</status>
+    <generatedAt>2026-01-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-4-auto-apply-preset-on-model-selection.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>presets to automatically load when I select a model</iWant>
+    <soThat>I don't have to manually enter trigger words and settings each time</soThat>
+    <tasks>
+      <task id="1" ac="1">Find matching preset when model is selected</task>
+      <task id="2" ac="2">Inject trigger words into prompt field</task>
+      <task id="3" ac="2">Apply default parameter values from preset</task>
+      <task id="4" ac="3">Ensure preset application happens automatically (&lt;1 second)</task>
+      <task id="5" ac="4">Provide visual indication that preset was applied</task>
+      <task id="6" ac="5">Handle models without presets gracefully</task>
+      <task id="7" ac="6">Prevent overwriting user-entered values</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">When model is selected, find matching preset by `model_id`</ac>
+    <ac id="2">If preset found, apply preset settings:
+      - Inject trigger words into prompt field (prepend or append based on preset config)
+      - Apply default parameter values (width, height, scheduler, etc.) from preset</ac>
+    <ac id="3">Preset application happens automatically (&lt;1 second)</ac>
+    <ac id="4">User can see that preset was applied (visual indication)</ac>
+    <ac id="5">Handle models without presets gracefully (no preset applied, use defaults)</ac>
+    <ac id="6">Preset application doesn't overwrite user-entered values if user has already customized</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 2.4: Auto-Apply Preset on Model Selection">
+        Story requirements and acceptance criteria for automatic preset application when model is selected.
+      </doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Preset Management">
+        Functional requirements FR012-FR016 for preset system including auto-application, trigger word injection, and manual override capabilities.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Documentation" section="Component Structure">
+        Application architecture showing Streamlit SPA structure, session state management, and component organization.
+      </doc>
+      <doc path="docs/stories/2-2-load-and-store-preset-configurations.md" title="Story 2.2" section="Dev Notes">
+        Preset loading implementation details, storage structure in session state, and preset lookup patterns.
+      </doc>
+      <doc path="docs/stories/2-3-display-model-information-in-sidebar.md" title="Story 2.3" section="Dev Notes">
+        Model information display implementation showing model selector update pattern and UI integration point for preset application.
+      </doc>
+    </docs>
+    <code>
+      <artifact path="streamlit_app.py" kind="main-application" symbol="configure_sidebar()" lines="374-519" reason="Main sidebar configuration function where preset application logic should be added after model selector update (after line 458, before model info display at line 460)">
+        Sidebar configuration function containing model selector (lines 412-458), model info display (lines 460-515), and form fields (lines 520+). Preset application should be triggered when model selection changes.
+      </artifact>
+      <artifact path="streamlit_app.py" kind="helper-function" symbol="_set_session_state()" lines="24-38" reason="Helper function for setting session state values that works with both dict-style and attribute-style access">
+        Utility function for safely setting session state values, used throughout the application for state management.
+      </artifact>
+      <artifact path="streamlit_app.py" kind="function" symbol="initialize_session_state()" lines="86-233" reason="Session state initialization function that loads presets into st.session_state.presets">
+        Initializes session state including model configs and presets. Presets are loaded at lines 125-127 and stored as dict grouped by model_id.
+      </artifact>
+      <artifact path="utils/preset_manager.py" kind="module" symbol="load_presets_config()" lines="10-136" reason="Function that loads and validates presets from presets.yaml, returning dict grouped by model_id">
+        Preset loading function that returns presets as {model_id: [preset1, preset2, ...]}. Used to access presets for selected model.
+      </artifact>
+      <artifact path="streamlit_app.py" kind="form-fields" symbol="Form inputs with keys" lines="520-617" reason="Form field definitions showing how to update session state keys (form_prompt, form_width, form_height, etc.) to apply preset values">
+        Form fields use keys like 'form_prompt', 'form_width', 'form_height', etc. Preset values should update these session state keys before form fields are rendered.
+      </artifact>
+      <artifact path="streamlit_app.py" kind="state-preservation" symbol="Preserved values pattern" lines="442-455" reason="Pattern for preserving form values when model changes, showing how to capture and restore user-entered values">
+        Shows pattern for preserving user values when model changes. Preset application should respect this pattern and only apply when switching to different model.
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="python">
+        <package name="streamlit" version=">=1.50.0" reason="Web framework for UI components and session state management"/>
+        <package name="pyyaml" version=">=6.0.1" reason="YAML parsing for preset configuration files"/>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="timing">Preset application must happen immediately when model selection changes, before form fields are rendered (after line 458, before line 460 in configure_sidebar)</constraint>
+    <constraint type="performance">Preset application must complete in &lt;1 second (NFR001). Dict lookup by model_id is O(1), so performance should be excellent</constraint>
+    <constraint type="state-management">Form field values are stored in session state with keys like 'form_prompt', 'form_width', etc. Preset values should update these keys before form fields are rendered</constraint>
+    <constraint type="preservation">When switching models, current prompt and settings should be preserved (FR008). However, preset application should override these values when a new model is selected</constraint>
+    <constraint type="ui-framework">Use Streamlit's native components for visual indication: st.success() or st.info() to show preset applied message. Message should be brief and non-intrusive</constraint>
+    <constraint type="graceful-degradation">If no preset exists for model, skip preset application gracefully. Don't show error message (presets are optional). Application continues to function normally</constraint>
+    <constraint type="user-override">Preset application should not overwrite user-entered values if user has already customized. Track which model preset was applied to prevent re-applying on every render</constraint>
+    <constraint type="preset-structure">Presets have structure: id, name, model_id, trigger_words (optional string or array), settings (optional dict). Settings can contain: width, height, scheduler, num_inference_steps, guidance_scale, prompt_strength, refine, high_noise_frac, num_outputs</constraint>
+    <constraint type="trigger-words">Trigger words can be prepended or appended to prompt. Preset should support trigger_words_position field ("prepend" or "append", default "prepend"). If trigger words are array, join with appropriate separator</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="st.session_state.presets" kind="session-state-dict" signature="Dict[str, List[Dict[str, Any]]]" path="streamlit_app.py" reason="Presets stored as dict grouped by model_id: {model_id: [preset1, preset2, ...]}. Access via st.session_state.presets.get(model_id, [])">
+      Preset storage structure in session state. To find presets for selected model, use selected_model.get('id') to get model_id, then look up in st.session_state.presets[model_id].
+    </interface>
+    <interface name="st.session_state.selected_model" kind="session-state-dict" signature="Dict[str, Any]" path="streamlit_app.py" reason="Currently selected model object with fields: id, name, endpoint, trigger_words (optional), default_settings (optional)">
+      Selected model object. Use selected_model.get('id') to get model_id for preset lookup. Check for None before accessing fields.
+    </interface>
+    <interface name="load_presets_config()" kind="function" signature="load_presets_config(file_path: str = 'presets.yaml', validate_model_ids: bool = True) -> Dict[str, List[Dict[str, Any]]]" path="utils/preset_manager.py" reason="Function that loads presets from YAML file and returns dict grouped by model_id">
+      Preset loading function. Already called at application startup in initialize_session_state(). Presets are stored in st.session_state.presets.
+    </interface>
+    <interface name="Form field session state keys" kind="session-state-keys" signature="form_prompt, form_width, form_height, form_num_outputs, form_scheduler, form_num_inference_steps, form_guidance_scale, form_prompt_strength, form_refine, form_high_noise_frac, form_negative_prompt" path="streamlit_app.py" reason="Session state keys used by form fields. Update these keys to apply preset values before form fields are rendered">
+      Form fields use these session state keys. To apply preset values, update these keys before form fields are rendered (form fields will automatically reflect updated values).
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing framework: pytest with integration test markers. Tests should be placed in tests/integration/test_streamlit_app.py following existing patterns. Use unittest.mock for mocking Streamlit components and session state. Test both positive scenarios (preset found and applied) and negative scenarios (no preset, missing fields, user overrides). Performance tests should verify &lt;1 second requirement.
+    </standards>
+    <locations>
+      <location>tests/integration/test_streamlit_app.py</location>
+      <location>tests/unit/</location>
+    </locations>
+    <ideas>
+      <test ac="1">Test preset lookup finds correct preset by model_id when preset exists</test>
+      <test ac="1">Test preset lookup returns None/empty when no preset exists for model</test>
+      <test ac="2">Test trigger words prepended to prompt when trigger_words_position is "prepend"</test>
+      <test ac="2">Test trigger words appended to prompt when trigger_words_position is "append"</test>
+      <test ac="2">Test trigger words formatted correctly when array vs string</test>
+      <test ac="2">Test preset settings (width, height, scheduler, etc.) applied to form field session state keys</test>
+      <test ac="3">Test preset application completes in &lt;1 second (performance test)</test>
+      <test ac="4">Test visual indication (st.success/st.info) appears when preset is applied</test>
+      <test ac="4">Test no visual indication when no preset exists</test>
+      <test ac="5">Test graceful handling when model has no preset (no error, app continues normally)</test>
+      <test ac="6">Test preset doesn't overwrite user-modified prompt when switching back to same model</test>
+      <test ac="6">Test preset doesn't overwrite user-modified settings when switching back to same model</test>
+      <test ac="6">Test preset applies when switching to different model</test>
+    </ideas>
+  </tests>
+</story-context>

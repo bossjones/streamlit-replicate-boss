@@ -2321,3 +2321,350 @@ class TestErrorHandlingStory17:
             # Verify log contains useful context
             log_messages = [record.message for record in caplog.records]
             assert any("Test" in msg or "test" in msg.lower() for msg in log_messages)
+
+
+class TestPresetAutoApplication:
+    """Tests for preset auto-application on model selection (Story 2.4)."""
+    
+    @pytest.mark.integration
+    def test_preset_lookup_finds_correct_preset_by_model_id(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC1: Preset lookup finds correct preset by model_id when preset exists."""
+        from streamlit_app import _apply_preset_for_model
+        
+        # GIVEN: Model with preset
+        model = sample_model_configs[0]
+        model_id = model.get('id')
+        preset = {
+            'id': 'test-preset',
+            'name': 'Test Preset',
+            'model_id': model_id,
+            'trigger_words': ['TRIGGER1'],
+            'settings': {'width': 512, 'height': 512}
+        }
+        st.session_state.presets = {model_id: [preset]}
+        st.session_state.preset_applied_for_model_id = None
+        
+        # WHEN: Applying preset for model
+        preset_applied, was_applied = _apply_preset_for_model(model)
+        
+        # THEN: Preset should be found and applied
+        assert preset_applied is not None
+        assert preset_applied['id'] == 'test-preset'
+        assert was_applied is True
+    
+    @pytest.mark.integration
+    def test_preset_lookup_returns_none_when_no_preset_exists(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC1: Preset lookup returns None when no preset exists for model."""
+        from streamlit_app import _apply_preset_for_model
+        
+        # GIVEN: Model without preset
+        model = sample_model_configs[0]
+        st.session_state.presets = {}
+        st.session_state.preset_applied_for_model_id = None
+        
+        # WHEN: Applying preset for model
+        preset_applied, was_applied = _apply_preset_for_model(model)
+        
+        # THEN: No preset should be found
+        assert preset_applied is None
+        assert was_applied is False
+    
+    @pytest.mark.integration
+    def test_trigger_words_prepended_when_position_is_prepend(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC2: Trigger words prepended to prompt when trigger_words_position is 'prepend'."""
+        from streamlit_app import _apply_preset_for_model
+        
+        # GIVEN: Model with preset that has trigger words with prepend position
+        model = sample_model_configs[0]
+        model_id = model.get('id')
+        preset = {
+            'id': 'test-preset',
+            'name': 'Test Preset',
+            'model_id': model_id,
+            'trigger_words': ['TRIGGER1', 'TRIGGER2'],
+            'trigger_words_position': 'prepend'
+        }
+        st.session_state.presets = {model_id: [preset]}
+        st.session_state.preset_applied_for_model_id = None
+        st.session_state.form_prompt = "existing prompt"
+        
+        # WHEN: Applying preset
+        _apply_preset_for_model(model)
+        
+        # THEN: Trigger words should be prepended
+        assert 'form_prompt' in st.session_state
+        prompt = st.session_state.form_prompt
+        assert prompt.startswith("TRIGGER1, TRIGGER2")
+        assert "existing prompt" in prompt
+    
+    @pytest.mark.integration
+    def test_trigger_words_appended_when_position_is_append(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC2: Trigger words appended to prompt when trigger_words_position is 'append'."""
+        from streamlit_app import _apply_preset_for_model
+        
+        # GIVEN: Model with preset that has trigger words with append position
+        model = sample_model_configs[0]
+        model_id = model.get('id')
+        preset = {
+            'id': 'test-preset',
+            'name': 'Test Preset',
+            'model_id': model_id,
+            'trigger_words': ['TRIGGER1'],
+            'trigger_words_position': 'append'
+        }
+        st.session_state.presets = {model_id: [preset]}
+        st.session_state.preset_applied_for_model_id = None
+        st.session_state.form_prompt = "existing prompt"
+        
+        # WHEN: Applying preset
+        _apply_preset_for_model(model)
+        
+        # THEN: Trigger words should be appended
+        assert 'form_prompt' in st.session_state
+        prompt = st.session_state.form_prompt
+        assert prompt.endswith("TRIGGER1")
+        assert prompt.startswith("existing prompt")
+    
+    @pytest.mark.integration
+    def test_trigger_words_formatted_correctly_when_array(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC2: Trigger words formatted correctly when array vs string."""
+        from streamlit_app import _apply_preset_for_model
+        
+        # GIVEN: Model with preset that has trigger words as array
+        model = sample_model_configs[0]
+        model_id = model.get('id')
+        preset = {
+            'id': 'test-preset',
+            'name': 'Test Preset',
+            'model_id': model_id,
+            'trigger_words': ['WORD1', 'WORD2', 'WORD3']
+        }
+        st.session_state.presets = {model_id: [preset]}
+        st.session_state.preset_applied_for_model_id = None
+        st.session_state.form_prompt = ""
+        
+        # WHEN: Applying preset
+        _apply_preset_for_model(model)
+        
+        # THEN: Trigger words should be formatted as comma-separated string
+        assert 'form_prompt' in st.session_state
+        prompt = st.session_state.form_prompt
+        assert "WORD1, WORD2, WORD3" in prompt
+    
+    @pytest.mark.integration
+    def test_preset_settings_applied_to_form_field_keys(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC2: Preset settings (width, height, scheduler, etc.) applied to form field session state keys."""
+        from streamlit_app import _apply_preset_for_model
+        
+        # GIVEN: Model with preset that has settings
+        model = sample_model_configs[0]
+        model_id = model.get('id')
+        preset = {
+            'id': 'test-preset',
+            'name': 'Test Preset',
+            'model_id': model_id,
+            'settings': {
+                'width': 512,
+                'height': 768,
+                'scheduler': 'DPMSolverMultistep',
+                'num_inference_steps': 30,
+                'guidance_scale': 8.0
+            }
+        }
+        st.session_state.presets = {model_id: [preset]}
+        st.session_state.preset_applied_for_model_id = None
+        
+        # WHEN: Applying preset
+        _apply_preset_for_model(model)
+        
+        # THEN: Settings should be applied to form field keys
+        assert st.session_state.get('form_width') == 512
+        assert st.session_state.get('form_height') == 768
+        assert st.session_state.get('form_scheduler') == 'DPMSolverMultistep'
+        assert st.session_state.get('form_num_inference_steps') == 30
+        assert st.session_state.get('form_guidance_scale') == 8.0
+    
+    @pytest.mark.integration
+    def test_visual_indication_appears_when_preset_applied(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC4: Visual indication (st.success) appears when preset is applied."""
+        # GIVEN: Session state with model and preset
+        model = sample_model_configs[0]
+        model_id = model.get('id')
+        preset = {
+            'id': 'test-preset',
+            'name': 'Test Preset',
+            'model_id': model_id,
+            'trigger_words': ['TRIGGER1']
+        }
+        st.session_state.model_configs = sample_model_configs
+        st.session_state.selected_model = sample_model_configs[1]  # Different model initially
+        st.session_state.presets = {model_id: [preset]}
+        st.session_state.preset_applied_for_model_id = None
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            
+            # Mock selectbox to return model with preset (triggers model change)
+            mock_st.selectbox.side_effect = [model.get('name'), "DDIM", "expert_ensemble_refiner"]
+            
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.text_area.return_value = "test"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_st.success = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.subheader = MagicMock()
+            mock_sidebar_ctx.caption = MagicMock()
+            mock_sidebar_ctx.info = MagicMock()
+            mock_st.divider = mock_sidebar_ctx.divider
+            mock_st.subheader = mock_sidebar_ctx.subheader
+            mock_st.caption = mock_sidebar_ctx.caption
+            mock_st.info = mock_sidebar_ctx.info
+            mock_st.success = mock_sidebar_ctx.success = MagicMock()
+            
+            # WHEN: Calling configure_sidebar (model switch occurs)
+            configure_sidebar()
+            
+            # THEN: Success message should be displayed
+            assert mock_st.success.called or mock_sidebar_ctx.success.called
+            success_calls = mock_st.success.call_args_list if mock_st.success.called else mock_sidebar_ctx.success.call_args_list
+            assert any("Preset" in str(call) and "applied" in str(call) for call in success_calls)
+    
+    @pytest.mark.integration
+    def test_no_visual_indication_when_no_preset_exists(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC4: No visual indication when no preset exists."""
+        # GIVEN: Model without preset
+        model = sample_model_configs[0]
+        st.session_state.model_configs = sample_model_configs
+        st.session_state.selected_model = sample_model_configs[1]  # Different model initially
+        st.session_state.presets = {}  # No presets
+        st.session_state.preset_applied_for_model_id = None
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            
+            mock_st.selectbox.side_effect = [model.get('name'), "DDIM", "expert_ensemble_refiner"]
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.text_area.return_value = "test"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_st.success = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.subheader = MagicMock()
+            mock_sidebar_ctx.caption = MagicMock()
+            mock_sidebar_ctx.info = MagicMock()
+            mock_st.divider = mock_sidebar_ctx.divider
+            mock_st.subheader = mock_sidebar_ctx.subheader
+            mock_st.caption = mock_sidebar_ctx.caption
+            mock_st.info = mock_sidebar_ctx.info
+            mock_st.success = mock_sidebar_ctx.success = MagicMock()
+            
+            # WHEN: Calling configure_sidebar
+            configure_sidebar()
+            
+            # THEN: Success message should NOT be displayed
+            # Note: success might be called for other reasons, but not for preset application
+            # We check that it wasn't called with preset-related message
+            if mock_st.success.called or mock_sidebar_ctx.success.called:
+                success_calls = mock_st.success.call_args_list if mock_st.success.called else mock_sidebar_ctx.success.call_args_list
+                assert not any("Preset" in str(call) and "applied" in str(call) for call in success_calls)
+    
+    @pytest.mark.integration
+    def test_graceful_handling_when_model_has_no_preset(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC5: Graceful handling when model has no preset (no error, app continues normally)."""
+        from streamlit_app import _apply_preset_for_model
+        
+        # GIVEN: Model without preset
+        model = sample_model_configs[0]
+        st.session_state.presets = {}
+        st.session_state.preset_applied_for_model_id = None
+        
+        # WHEN: Applying preset for model
+        preset_applied, was_applied = _apply_preset_for_model(model)
+        
+        # THEN: Should return None without error
+        assert preset_applied is None
+        assert was_applied is False
+        # App should continue normally (no exception raised)
+    
+    @pytest.mark.integration
+    def test_preset_doesnt_overwrite_user_modified_prompt(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC6: Preset doesn't overwrite user-modified prompt when switching back to same model."""
+        from streamlit_app import _apply_preset_for_model
+        
+        # GIVEN: Model with preset, preset already applied
+        model = sample_model_configs[0]
+        model_id = model.get('id')
+        preset = {
+            'id': 'test-preset',
+            'name': 'Test Preset',
+            'model_id': model_id,
+            'trigger_words': ['TRIGGER1']
+        }
+        st.session_state.presets = {model_id: [preset]}
+        st.session_state.preset_applied_for_model_id = model_id  # Already applied
+        st.session_state.form_prompt = "user modified prompt"
+        
+        # WHEN: Trying to apply preset again (should not re-apply)
+        preset_applied, was_applied = _apply_preset_for_model(model)
+        
+        # THEN: Preset should not be re-applied, user prompt preserved
+        assert was_applied is False
+        assert st.session_state.form_prompt == "user modified prompt"
+    
+    @pytest.mark.integration
+    def test_preset_applies_when_switching_to_different_model(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC6: Preset applies when switching to different model."""
+        from streamlit_app import _apply_preset_for_model
+        
+        # GIVEN: Two models, second has preset
+        model1 = sample_model_configs[0]
+        model2 = sample_model_configs[1] if len(sample_model_configs) > 1 else sample_model_configs[0]
+        model2_id = model2.get('id')
+        preset = {
+            'id': 'test-preset',
+            'name': 'Test Preset',
+            'model_id': model2_id,
+            'trigger_words': ['TRIGGER1'],
+            'settings': {'width': 512}
+        }
+        st.session_state.presets = {model2_id: [preset]}
+        st.session_state.preset_applied_for_model_id = model1.get('id')  # Different model
+        
+        # WHEN: Applying preset for different model
+        preset_applied, was_applied = _apply_preset_for_model(model2)
+        
+        # THEN: Preset should be applied
+        assert was_applied is True
+        assert preset_applied is not None
+        assert st.session_state.get('form_width') == 512

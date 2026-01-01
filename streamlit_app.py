@@ -37,6 +37,120 @@ def _set_session_state(key: str, value: any) -> None:
         # Fall back to dict-style access (works in tests with mocked dict)
         st.session_state[key] = value
 
+
+def _apply_preset_for_model(selected_model: dict) -> tuple[dict | None, bool]:
+    """
+    Apply preset for selected model if preset exists.
+    
+    This function:
+    - Finds matching preset by model_id
+    - Applies trigger words to prompt (prepend or append)
+    - Applies preset settings to form field session state keys
+    - Returns preset dict and success flag
+    
+    Args:
+        selected_model: The currently selected model dict
+        
+    Returns:
+        Tuple of (preset_dict, was_applied) where:
+        - preset_dict: The preset that was applied, or None if no preset found
+        - was_applied: True if preset was applied, False otherwise
+    """
+    if not selected_model:
+        return None, False
+    
+    model_id = selected_model.get('id')
+    if not model_id:
+        return None, False
+    
+    # Get presets from session state
+    presets = st.session_state.get('presets', {})
+    model_presets = presets.get(model_id, [])
+    
+    # If no presets for this model, return None
+    if not model_presets or len(model_presets) == 0:
+        return None, False
+    
+    # Find preset to use: first preset with default: true, or first preset
+    preset_to_apply = None
+    for preset in model_presets:
+        if preset.get('default', False):
+            preset_to_apply = preset
+            break
+    
+    if not preset_to_apply:
+        preset_to_apply = model_presets[0]
+    
+    # Track which model preset was applied to prevent re-applying
+    applied_model_id = st.session_state.get('preset_applied_for_model_id', None)
+    if applied_model_id == model_id:
+        # Preset already applied for this model, don't re-apply
+        return preset_to_apply, False
+    
+    # Apply trigger words to prompt if available
+    trigger_words = preset_to_apply.get('trigger_words')
+    if trigger_words:
+        # Determine injection position (default to "prepend")
+        position = preset_to_apply.get('trigger_words_position', 'prepend')
+        
+        # Format trigger words
+        if isinstance(trigger_words, list):
+            # Filter out empty strings and join
+            filtered = [tw for tw in trigger_words if tw and str(tw).strip()]
+            if filtered:
+                trigger_words_str = ", ".join(str(tw) for tw in filtered)
+            else:
+                trigger_words_str = None
+        elif isinstance(trigger_words, str) and trigger_words.strip():
+            trigger_words_str = trigger_words
+        else:
+            trigger_words_str = None
+        
+        # Apply trigger words to prompt
+        if trigger_words_str:
+            # Get current prompt from session state (may not exist yet)
+            current_prompt = st.session_state.get('form_prompt', '')
+            if position == 'append':
+                # Append trigger words to end of prompt
+                if current_prompt:
+                    new_prompt = f"{current_prompt} {trigger_words_str}".strip()
+                else:
+                    new_prompt = trigger_words_str
+            else:  # prepend (default)
+                # Prepend trigger words to beginning of prompt
+                if current_prompt:
+                    new_prompt = f"{trigger_words_str} {current_prompt}".strip()
+                else:
+                    new_prompt = trigger_words_str
+            
+            _set_session_state('form_prompt', new_prompt)
+    
+    # Apply preset settings to form field session state keys
+    settings = preset_to_apply.get('settings', {})
+    if settings:
+        # Map preset settings to form field keys
+        setting_mappings = {
+            'width': 'form_width',
+            'height': 'form_height',
+            'num_outputs': 'form_num_outputs',
+            'scheduler': 'form_scheduler',
+            'num_inference_steps': 'form_num_inference_steps',
+            'guidance_scale': 'form_guidance_scale',
+            'prompt_strength': 'form_prompt_strength',
+            'refine': 'form_refine',
+            'high_noise_frac': 'form_high_noise_frac',
+            'negative_prompt': 'form_negative_prompt',
+        }
+        
+        for setting_key, form_key in setting_mappings.items():
+            if setting_key in settings:
+                _set_session_state(form_key, settings[setting_key])
+    
+    # Track that preset was applied for this model
+    _set_session_state('preset_applied_for_model_id', model_id)
+    
+    return preset_to_apply, True
+
 # Helper function to get secrets with fallback for testing
 def get_secret(key: str, default: str = None) -> str:
     """Get secret from Streamlit secrets or environment variable, with fallback for testing.
@@ -456,6 +570,26 @@ def configure_sidebar() -> None:
                         
                         # Update selected model
                         _set_session_state('selected_model', new_selected_model)
+                        
+                        # Apply preset for newly selected model (if model changed or on initial load)
+                        # Check if preset hasn't been applied for this model yet
+                        applied_model_id = st.session_state.get('preset_applied_for_model_id', None)
+                        current_model_id = new_selected_model.get('id')
+                        should_apply_preset = model_changed or (applied_model_id != current_model_id)
+                        
+                        if should_apply_preset:
+                            # Reset preset applied tracking when switching to different model
+                            if model_changed:
+                                _set_session_state('preset_applied_for_model_id', None)
+                            
+                            # Apply preset for new model
+                            preset_applied, was_applied = _apply_preset_for_model(new_selected_model)
+                            
+                            # Show visual indication if preset was applied
+                            if was_applied and preset_applied:
+                                preset_name = preset_applied.get('name', 'Default')
+                                model_name = new_selected_model.get('name', new_selected_model.get('id', 'Model'))
+                                st.success(f"✅ Preset '{preset_name}' applied for {model_name}")
         
         # Model Information Section - Display selected model details
         # Get updated selected_model after potential change
