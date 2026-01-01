@@ -976,3 +976,351 @@ class TestMainPageEdgeCases:
             call_kwargs = mock_replicate_run.call_args[1]['input']
             # Note: The actual code uses 'prompt_stregth' (typo), so we check for that
             assert 'prompt_stregth' in call_kwargs or 'prompt_strength' in call_kwargs
+
+
+class TestModelSwitching:
+    """Tests for model switching functionality (Story 1.5)."""
+    
+    @pytest.mark.integration
+    def test_model_switching_preserves_prompt(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC3: Current prompt is preserved when switching models."""
+        # GIVEN: Session state with models and form values
+        st.session_state.model_configs = sample_model_configs
+        st.session_state.selected_model = sample_model_configs[0]
+        st.session_state.form_prompt = "Test prompt to preserve"
+        st.session_state.form_width = 1024
+        st.session_state.form_height = 1024
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            
+            # Mock selectbox to return different model (triggers switch)
+            mock_st.selectbox.side_effect = ["Model 2", "DDIM", "expert_ensemble_refiner"]
+            
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.text_area.return_value = "Test prompt to preserve"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_st.warning = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Calling configure_sidebar (model switch occurs)
+            configure_sidebar()
+            
+            # THEN: Prompt should be preserved
+            assert 'preserved_prompt' in st.session_state
+            assert st.session_state.preserved_prompt == "Test prompt to preserve"
+    
+    @pytest.mark.integration
+    def test_model_switching_preserves_settings(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC3: Current settings are preserved when switching models."""
+        # GIVEN: Session state with models and form values
+        st.session_state.model_configs = sample_model_configs
+        st.session_state.selected_model = sample_model_configs[0]
+        st.session_state.form_width = 2048
+        st.session_state.form_height = 1536
+        st.session_state.form_num_outputs = 2
+        st.session_state.form_scheduler = 'KarrasDPM'
+        st.session_state.form_num_inference_steps = 100
+        st.session_state.form_guidance_scale = 8.5
+        st.session_state.form_prompt_strength = 0.9
+        st.session_state.form_refine = 'None'
+        st.session_state.form_high_noise_frac = 0.7
+        st.session_state.form_negative_prompt = "test negative"
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            
+            # Mock selectbox to return different model (triggers switch)
+            mock_st.selectbox.side_effect = ["Model 2", "KarrasDPM", "None"]
+            
+            mock_st.number_input.return_value = 2048
+            mock_st.slider.return_value = 2
+            mock_st.text_area.return_value = "test"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_st.warning = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Calling configure_sidebar (model switch occurs)
+            configure_sidebar()
+            
+            # THEN: Settings should be preserved
+            assert 'preserved_settings' in st.session_state
+            preserved = st.session_state.preserved_settings
+            assert preserved['width'] == 2048
+            assert preserved['height'] == 1536
+            assert preserved['num_outputs'] == 2
+            assert preserved['scheduler'] == 'KarrasDPM'
+            assert preserved['num_inference_steps'] == 100
+            assert preserved['guidance_scale'] == 8.5
+            assert preserved['prompt_strength'] == 0.9
+            assert preserved['refine'] == 'None'
+            assert preserved['high_noise_frac'] == 0.7
+            assert preserved['negative_prompt'] == "test negative"
+    
+    @pytest.mark.integration
+    def test_model_switching_updates_session_state(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC1: Model selection in dropdown updates st.session_state.selected_model."""
+        # GIVEN: Session state with models
+        st.session_state.model_configs = sample_model_configs
+        st.session_state.selected_model = sample_model_configs[0]
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            
+            # Mock selectbox to return different model
+            mock_st.selectbox.side_effect = ["Model 2", "DDIM", "expert_ensemble_refiner"]
+            
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.text_area.return_value = "test"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_st.warning = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Calling configure_sidebar
+            configure_sidebar()
+            
+            # THEN: selected_model should be updated
+            assert st.session_state.selected_model == sample_model_configs[1]
+            assert st.session_state.selected_model['name'] == "Model 2"
+    
+    @pytest.mark.integration
+    def test_model_switching_handles_invalid_selection(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC6: Invalid model selection is handled gracefully."""
+        # GIVEN: Session state with models
+        st.session_state.model_configs = sample_model_configs
+        st.session_state.selected_model = sample_model_configs[0]
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            mock_st.error = MagicMock()
+            mock_st.warning = MagicMock()
+            
+            # Mock selectbox to return invalid model name
+            mock_st.selectbox.side_effect = ["Invalid Model", "DDIM", "expert_ensemble_refiner"]
+            
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.text_area.return_value = "test"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Calling configure_sidebar with invalid model
+            configure_sidebar()
+            
+            # THEN: Error message should be displayed
+            mock_st.error.assert_called()
+            error_call = str(mock_st.error.call_args)
+            assert "Invalid model selection" in error_call or "Invalid Model" in error_call
+    
+    @pytest.mark.integration
+    def test_model_switching_handles_missing_config(self, mock_streamlit_secrets):
+        """Test AC6: Switching before config loads is handled gracefully."""
+        # GIVEN: Empty model configs (config not loaded)
+        st.session_state.model_configs = []
+        if 'selected_model' in st.session_state:
+            del st.session_state.selected_model
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            mock_st.warning = MagicMock()
+            
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.selectbox.return_value = "DDIM"
+            mock_st.text_area.return_value = "test"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Calling configure_sidebar
+            configure_sidebar()
+            
+            # THEN: Warning should be displayed, model selector should not be rendered
+            mock_st.warning.assert_called()
+            warning_call = str(mock_st.warning.call_args)
+            assert "No models configured" in warning_call or "models.yaml" in warning_call
+    
+    @pytest.mark.integration
+    def test_rapid_model_switching(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC5: Rapid model switching works reliably without state corruption."""
+        # GIVEN: Session state with models
+        st.session_state.model_configs = sample_model_configs
+        st.session_state.selected_model = sample_model_configs[0]
+        st.session_state.form_prompt = "Test prompt"
+        st.session_state.form_width = 1024
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            
+            # Simulate rapid switching: Model 1 -> Model 2 -> Model 1 -> Model 2 -> Model 1
+            # Each call simulates one switch
+            switch_sequence = ["Model 2", "Model 1", "Model 2", "Model 1", "Model 2"]
+            mock_st.selectbox.side_effect = switch_sequence + ["DDIM", "expert_ensemble_refiner"]
+            
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.text_area.return_value = "Test prompt"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_st.warning = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Performing rapid switches
+            for i, model_name in enumerate(switch_sequence):
+                # Update selected model name in mock
+                mock_st.selectbox.side_effect = [model_name] + ["DDIM", "expert_ensemble_refiner"]
+                configure_sidebar()
+            
+            # THEN: State should be consistent, selected_model should match last switch
+            assert st.session_state.selected_model == sample_model_configs[1]  # Model 2
+            assert st.session_state.selected_model['name'] == "Model 2"
+            # Preserved values should still be intact
+            if 'preserved_prompt' in st.session_state:
+                assert st.session_state.preserved_prompt == "Test prompt"
+    
+    @pytest.mark.integration
+    def test_model_switching_ui_reflects_selection(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC4: UI reflects selected model (dropdown shows current selection)."""
+        # GIVEN: Session state with selected model
+        st.session_state.model_configs = sample_model_configs
+        st.session_state.selected_model = sample_model_configs[1]  # Model 2
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            
+            # Mock selectbox to return current selection
+            mock_st.selectbox.side_effect = ["Model 2", "DDIM", "expert_ensemble_refiner"]
+            
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.text_area.return_value = "test"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_st.warning = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Calling configure_sidebar
+            configure_sidebar()
+            
+            # THEN: selectbox should be called with correct index for Model 2
+            selectbox_calls = mock_st.selectbox.call_args_list
+            assert len(selectbox_calls) > 0
+            first_call = selectbox_calls[0]  # Model selector call
+            call_kwargs = first_call[1] if len(first_call) > 1 else {}
+            call_args = first_call[0] if len(first_call) > 0 else ()
+            # Index should be 1 (second model, Model 2)
+            if 'index' in call_kwargs:
+                assert call_kwargs['index'] == 1
+            elif len(call_args) > 2:
+                assert call_args[2] == 1

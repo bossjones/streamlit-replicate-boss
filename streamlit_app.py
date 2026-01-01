@@ -139,63 +139,178 @@ def configure_sidebar() -> None:
         model_configs = st.session_state.get('model_configs', [])
         selected_model = st.session_state.get('selected_model', None)
         
+        # Initialize preserved state if not exists
+        if 'preserved_prompt' not in st.session_state:
+            st.session_state.preserved_prompt = None
+        if 'preserved_settings' not in st.session_state:
+            st.session_state.preserved_settings = None
+        
+        # Check if model_configs exists and is not empty before allowing switch
         if not model_configs:
             st.warning("⚠️ No models configured. Please check models.yaml file.")
         else:
-            # Get list of model names for selectbox options
-            model_names = [model.get('name', model.get('id', 'Unknown')) for model in model_configs]
-            
-            # Get current selection index
-            current_index = 0
-            if selected_model and selected_model.get('name'):
-                try:
-                    current_index = model_names.index(selected_model['name'])
-                except ValueError:
-                    # If selected model name not found, default to first
-                    current_index = 0
-            
-            # Model selector selectbox
-            selected_model_name = st.selectbox(
-                "Select Model",
-                options=model_names,
-                index=current_index,
-                key="model_selector"
-            )
-            
-            # Update session state when selection changes
-            if selected_model_name:
-                # Find the model object matching the selected name
-                for model in model_configs:
-                    if model.get('name') == selected_model_name:
-                        st.session_state.selected_model = model
-                        break
+                # Get list of model names for selectbox options
+                model_names = [model.get('name', model.get('id', 'Unknown')) for model in model_configs]
+                
+                # Get current selection index
+                current_index = 0
+                if selected_model and selected_model.get('name'):
+                    try:
+                        current_index = model_names.index(selected_model['name'])
+                    except ValueError:
+                        # If selected model name not found, default to first
+                        current_index = 0
+                
+                # Store previous model selection to detect changes
+                previous_model = selected_model
+                
+                # Model selector selectbox
+                selected_model_name = st.selectbox(
+                    "Select Model",
+                    options=model_names,
+                    index=current_index,
+                    key="model_selector"
+                )
+                
+                # Update session state when selection changes
+                if selected_model_name:
+                    # Find the model object matching the selected name
+                    new_selected_model = None
+                    for model in model_configs:
+                        if model.get('name') == selected_model_name:
+                            new_selected_model = model
+                            break
+                    
+                    # Validate selected model exists in configs
+                    if new_selected_model is None:
+                        st.error(f"⚠️ Invalid model selection: {selected_model_name}. Please select a valid model.")
+                    else:
+                        # Detect if model changed
+                        model_changed = (
+                            previous_model is None or 
+                            new_selected_model.get('name') != previous_model.get('name')
+                        )
+                        
+                        # If model changed, preserve current form values before switching
+                        if model_changed:
+                            # Capture current form values from session state keys (form inputs use keys)
+                            # These values persist across reruns even when form isn't submitted
+                            if 'form_width' in st.session_state:
+                                st.session_state.preserved_prompt = st.session_state.get('form_prompt')
+                                st.session_state.preserved_settings = {
+                                    'width': st.session_state.get('form_width'),
+                                    'height': st.session_state.get('form_height'),
+                                    'num_outputs': st.session_state.get('form_num_outputs'),
+                                    'scheduler': st.session_state.get('form_scheduler'),
+                                    'num_inference_steps': st.session_state.get('form_num_inference_steps'),
+                                    'guidance_scale': st.session_state.get('form_guidance_scale'),
+                                    'prompt_strength': st.session_state.get('form_prompt_strength'),
+                                    'refine': st.session_state.get('form_refine'),
+                                    'high_noise_frac': st.session_state.get('form_high_noise_frac'),
+                                    'negative_prompt': st.session_state.get('form_negative_prompt'),
+                                }
+                        
+                        # Update selected model
+                        st.session_state.selected_model = new_selected_model
         
         with st.form("my_form"):
             st.info("**Yo fam! Start here ↓**", icon="👋🏾")
+            
+            # Get preserved values if they exist, otherwise use defaults
+            preserved_settings = st.session_state.get('preserved_settings', {})
+            preserved_prompt = st.session_state.get('preserved_prompt')
+            
             with st.expander(":rainbow[**Refine your output here**]"):
                 # Advanced Settings (for the curious minds!)
-                width = st.number_input("Width of output image", value=1024)
-                height = st.number_input("Height of output image", value=1024)
+                # Use preserved values if available, otherwise defaults
+                # Use session state keys so values persist across reruns
+                width_default = preserved_settings.get('width', 1024) if preserved_settings else 1024
+                width = st.number_input(
+                    "Width of output image", 
+                    value=width_default,
+                    key='form_width'
+                )
+                height_default = preserved_settings.get('height', 1024) if preserved_settings else 1024
+                height = st.number_input(
+                    "Height of output image", 
+                    value=height_default,
+                    key='form_height'
+                )
+                num_outputs_default = preserved_settings.get('num_outputs', 1) if preserved_settings else 1
                 num_outputs = st.slider(
-                    "Number of images to output", value=1, min_value=1, max_value=4)
-                scheduler = st.selectbox('Scheduler', ('DDIM', 'DPMSolverMultistep', 'HeunDiscrete',
-                                                       'KarrasDPM', 'K_EULER_ANCESTRAL', 'K_EULER', 'PNDM'))
+                    "Number of images to output", 
+                    value=num_outputs_default, 
+                    min_value=1, 
+                    max_value=4,
+                    key='form_num_outputs'
+                )
+                scheduler_options = ('DDIM', 'DPMSolverMultistep', 'HeunDiscrete',
+                                   'KarrasDPM', 'K_EULER_ANCESTRAL', 'K_EULER', 'PNDM')
+                scheduler_default = preserved_settings.get('scheduler', 'DDIM') if preserved_settings else 'DDIM'
+                scheduler_index = scheduler_options.index(scheduler_default) if scheduler_default in scheduler_options else 0
+                scheduler = st.selectbox(
+                    'Scheduler', 
+                    scheduler_options, 
+                    index=scheduler_index,
+                    key='form_scheduler'
+                )
+                num_inference_steps_default = preserved_settings.get('num_inference_steps', 50) if preserved_settings else 50
                 num_inference_steps = st.slider(
-                    "Number of denoising steps", value=50, min_value=1, max_value=500)
+                    "Number of denoising steps", 
+                    value=num_inference_steps_default, 
+                    min_value=1, 
+                    max_value=500,
+                    key='form_num_inference_steps'
+                )
+                guidance_scale_default = preserved_settings.get('guidance_scale', 7.5) if preserved_settings else 7.5
                 guidance_scale = st.slider(
-                    "Scale for classifier-free guidance", value=7.5, min_value=1.0, max_value=50.0, step=0.1)
+                    "Scale for classifier-free guidance", 
+                    value=guidance_scale_default, 
+                    min_value=1.0, 
+                    max_value=50.0, 
+                    step=0.1,
+                    key='form_guidance_scale'
+                )
+                prompt_strength_default = preserved_settings.get('prompt_strength', 0.8) if preserved_settings else 0.8
                 prompt_strength = st.slider(
-                    "Prompt strength when using img2img/inpaint(1.0 corresponds to full destruction of infomation in image)", value=0.8, max_value=1.0, step=0.1)
+                    "Prompt strength when using img2img/inpaint(1.0 corresponds to full destruction of infomation in image)", 
+                    value=prompt_strength_default, 
+                    max_value=1.0, 
+                    step=0.1,
+                    key='form_prompt_strength'
+                )
+                refine_options = ("expert_ensemble_refiner", "None")
+                refine_default = preserved_settings.get('refine', 'expert_ensemble_refiner') if preserved_settings else 'expert_ensemble_refiner'
+                refine_index = refine_options.index(refine_default) if refine_default in refine_options else 0
                 refine = st.selectbox(
-                    "Select refine style to use (left out the other 2)", ("expert_ensemble_refiner", "None"))
+                    "Select refine style to use (left out the other 2)", 
+                    refine_options,
+                    index=refine_index,
+                    key='form_refine'
+                )
+                high_noise_frac_default = preserved_settings.get('high_noise_frac', 0.8) if preserved_settings else 0.8
                 high_noise_frac = st.slider(
-                    "Fraction of noise to use for `expert_ensemble_refiner`", value=0.8, max_value=1.0, step=0.1)
+                    "Fraction of noise to use for `expert_ensemble_refiner`", 
+                    value=high_noise_frac_default, 
+                    max_value=1.0, 
+                    step=0.1,
+                    key='form_high_noise_frac'
+                )
+            
+            # Use preserved prompt if available, otherwise default
+            prompt_default = preserved_prompt if preserved_prompt else "An astronaut riding a rainbow unicorn, cinematic, dramatic"
             prompt = st.text_area(
                 ":orange[**Enter prompt: start typing, Shakespeare ✍🏾**]",
-                value="An astronaut riding a rainbow unicorn, cinematic, dramatic")
-            negative_prompt = st.text_area(":orange[**Party poopers you don't want in image? 🙅🏽‍♂️**]",
-                                           value="the absolute worst quality, distorted features",
-                                           help="This is a negative prompt, basically type what you don't want to see in the generated image")
+                value=prompt_default,
+                key='form_prompt'
+            )
+            negative_prompt_default = preserved_settings.get('negative_prompt', "the absolute worst quality, distorted features") if preserved_settings else "the absolute worst quality, distorted features"
+            negative_prompt = st.text_area(
+                ":orange[**Party poopers you don't want in image? 🙅🏽‍♂️**]",
+                value=negative_prompt_default,
+                help="This is a negative prompt, basically type what you don't want to see in the generated image",
+                key='form_negative_prompt'
+            )
 
             # The Big Red "Submit" Button!
             submitted = st.form_submit_button(
