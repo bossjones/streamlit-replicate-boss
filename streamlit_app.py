@@ -906,9 +906,9 @@ def configure_sidebar() -> None:
             ---
             Follow me on:
 
-            𝕏 → [@tonykipkemboi](https://twitter.com/tonykipkemboi)
+            𝕏 → [@bossjones](https://twitter.com/bossjones)
 
-            LinkedIn → [Tony Kipkemboi](https://www.linkedin.com/in/tonykipkemboi)
+            LinkedIn → [Tony Dark](https://www.linkedin.com/in/bossjones)
 
             """
         )
