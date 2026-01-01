@@ -1,0 +1,137 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>4</storyId>
+    <title>Create Model Selector UI Component</title>
+    <status>drafted</status>
+    <generatedAt>2026-01-01 10:53</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-4-create-model-selector-ui-component.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to see and select from available models in the sidebar</iWant>
+    <soThat>I can choose which model to use for image generation</soThat>
+    <tasks>
+      <task id="1" ac="1,2,3,4">Add model selector UI component to sidebar</task>
+      <task id="2" ac="3,5">Connect selector to session state</task>
+      <task id="3" ac="6">Handle empty model list gracefully</task>
+      <task id="4" ac="1,4">Integrate with existing sidebar form</task>
+      <task id="5" ac="5">Add visual feedback for model selection</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Add model selector dropdown/selectbox to sidebar (top of form, before prompt)</ac>
+    <ac id="2">Display all models from configuration with their display names</ac>
+    <ac id="3">Show currently selected model in dropdown</ac>
+    <ac id="4">Model selector is always visible (not in expander)</ac>
+    <ac id="5">UI updates immediately when selection changes</ac>
+    <ac id="6">Handle empty model list gracefully (show message, disable selector)</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 1.4: Create Model Selector UI Component">
+        Story requirements and acceptance criteria for adding model selector UI component to sidebar.
+      </doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Model Management &amp; Configuration">
+        FR004: The system must provide a model selector UI component (dropdown/selectbox) in the sidebar that displays all available models.
+      </doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Information Architecture">
+        Sidebar hierarchy: Model Selection Section (Top Priority - Always Visible) with model selector dropdown at prominent placement.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Model Selector UI (Story 1.4)">
+        Implementation details: Use st.selectbox() widget with options from st.session_state.model_configs, display model name field, update st.session_state.selected_model on change.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Documentation" section="Component Structure">
+        Streamlit's reactive framework automatically updates UI when session state changes. No additional update logic needed.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Session State Structure">
+        Session state structure: st.session_state.model_configs (list of model dicts), st.session_state.selected_model (single model dict).
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Testing Approach">
+        Use Streamlit's AppTest framework for integration testing. Test selector appearance, model display, selection updates, and error handling.
+      </doc>
+      <doc path="docs/stories/1-3-initialize-session-state-for-model-management.md" title="Previous Story" section="Completion Notes List">
+        Session state initialization: initialize_session_state() function loads models and sets default model. Both model_configs and selected_model are initialized before UI rendering.
+      </doc>
+    </docs>
+    <code>
+      <file path="streamlit_app.py" kind="main-application" symbol="configure_sidebar()" lines="130-188" reason="Function where model selector UI component must be added at top of sidebar, before prompt input field">
+        Current sidebar configuration function. Model selector should be added at line ~138, before the form starts or at top of form.
+      </file>
+      <file path="streamlit_app.py" kind="main-application" symbol="initialize_session_state()" lines="67-128" reason="Initializes st.session_state.model_configs and st.session_state.selected_model that the selector will use">
+        Session state initialization function. Provides model_configs list and selected_model dict that model selector needs.
+      </file>
+      <file path="streamlit_app.py" kind="main-application" symbol="main()" lines="303-318" reason="Calls initialize_session_state() before configure_sidebar(), ensuring models are loaded before UI components">
+        Main function ensures session state is initialized before sidebar configuration, so model_configs is available when selector renders.
+      </file>
+      <file path="config/model_loader.py" kind="service" symbol="load_models_config()" lines="10-105" reason="Loads model configurations from models.yaml, returns list of model dictionaries used by session state">
+        Model configuration loader. Returns List[Dict] structure that populates st.session_state.model_configs.
+      </file>
+      <file path="tests/test_session_state.py" kind="test" symbol="TestInitializeSessionState" lines="13-209" reason="Test patterns for session state initialization that can be adapted for testing model selector UI component">
+        Test suite demonstrating patterns for testing Streamlit session state and UI components. Can be adapted for model selector tests.
+      </file>
+    </code>
+    <dependencies>
+      <python>
+        <package name="streamlit" version=">=1.50.0" reason="UI framework providing st.selectbox() widget and session state management"/>
+        <package name="pyyaml" version=">=6.0.1" reason="YAML parsing for models.yaml configuration file"/>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Model selector must be placed at top of sidebar, before prompt input field, following PRD information architecture hierarchy</constraint>
+    <constraint>Use st.selectbox() widget from Streamlit framework - no custom components</constraint>
+    <constraint>Display model 'name' field as user-visible options, not 'id' field</constraint>
+    <constraint>Model selector must always be visible (not inside expander or conditional block)</constraint>
+    <constraint>Selection persists via session state, not form submission - selector doesn't need to be inside form submission logic</constraint>
+    <constraint>Handle empty model_configs gracefully - show warning message and disable/hide selector if no models available</constraint>
+    <constraint>Streamlit's reactive framework handles UI updates automatically when session state changes - no manual update logic needed</constraint>
+    <constraint>Map selected model name back to model object from model_configs list when updating st.session_state.selected_model</constraint>
+    <constraint>Use existing session state structure: st.session_state.model_configs (list) and st.session_state.selected_model (dict)</constraint>
+    <constraint>Follow testing patterns from test_session_state.py - use Streamlit AppTest framework for integration testing</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="st.selectbox()" kind="Streamlit widget" signature="st.selectbox(label, options, index=None, key=None)" path="streamlit_app.py">
+      Streamlit selectbox widget for model selection. Options from st.session_state.model_configs, display model['name'] values.
+    </interface>
+    <interface name="st.session_state.model_configs" kind="session state" signature="List[Dict[str, Any]]" path="streamlit_app.py">
+      Session state variable containing list of model dictionaries. Initialized by initialize_session_state() function.
+    </interface>
+    <interface name="st.session_state.selected_model" kind="session state" signature="Dict[str, Any]" path="streamlit_app.py">
+      Session state variable containing currently selected model dictionary. Updated when selector changes.
+    </interface>
+    <interface name="configure_sidebar()" kind="function" signature="def configure_sidebar() -&gt; None" path="streamlit_app.py">
+      Sidebar configuration function where model selector must be added. Currently contains form with prompt and settings inputs.
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use Streamlit's AppTest framework (included with Streamlit 1.50.0+) for integration testing. Test patterns follow test_session_state.py approach: use AppTest.from_file() to load application, access sidebar components, verify UI elements appear correctly, test user interactions, verify session state updates. Use pytest as test runner with markers for unit/integration tests.
+    </standards>
+    <locations>
+      <location>tests/</location>
+      <location>tests/integration/</location>
+      <location>tests/unit/</location>
+    </locations>
+    <ideas>
+      <test ac="1,2,4">Test model selector appears at top of sidebar before prompt input</test>
+      <test ac="2">Test all models from model_configs are displayed in selector options</test>
+      <test ac="3">Test currently selected model (from selected_model) is shown in dropdown</test>
+      <test ac="4">Test selector is always visible (not in expander)</test>
+      <test ac="5">Test UI updates immediately when selection changes (no page reload)</test>
+      <test ac="5">Test st.session_state.selected_model updates when selector changes</test>
+      <test ac="6">Test warning message displayed when model_configs is empty</test>
+      <test ac="6">Test selector disabled/hidden when no models available</test>
+      <test ac="6">Test app doesn't crash when models list is empty</test>
+      <test ac="1,4">Test selector doesn't interfere with existing form submission</test>
+      <test ac="1,4">Test selector placement in sidebar hierarchy (before prompt)</test>
+    </ideas>
+  </tests>
+</story-context>

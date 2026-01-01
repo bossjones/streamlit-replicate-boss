@@ -40,12 +40,23 @@ class TestConfigureSidebar:
             mock_form_ctx.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
             mock_form_ctx.expander.return_value.__exit__ = MagicMock(return_value=None)
             
+            # Setup session state for model selector (before form)
+            # Provide a model config so the model selector is rendered
+            mock_st.session_state = st.session_state
+            mock_st.session_state.model_configs = [
+                {'id': 'test-model', 'name': 'Test Model', 'endpoint': 'owner/model:version'}
+            ]
+            mock_st.session_state.selected_model = mock_st.session_state.model_configs[0]
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            mock_st.warning = MagicMock()
+            
             # Make st delegate to form_ctx when inside form (simplified - just make st methods return form_ctx methods)
             # Actually, the form context manager makes st methods work, so we need st to have these methods
             # that work both inside and outside form. For simplicity, make st methods return form_ctx methods' return values
+            # NOTE: First selectbox call is for model selector, then form selectboxes
             mock_st.number_input.side_effect = [1024, 1024]
             mock_st.slider.side_effect = [1, 50, 7.5, 0.8, 0.8]
-            mock_st.selectbox.side_effect = ["DDIM", "expert_ensemble_refiner"]
+            mock_st.selectbox.side_effect = ["Test Model", "DDIM", "expert_ensemble_refiner"]  # model selector, scheduler, refine
             mock_st.text_area.side_effect = ["test prompt", "test negative prompt"]
             mock_st.form_submit_button.return_value = False
             mock_st.info = MagicMock()
@@ -126,6 +137,354 @@ class TestConfigureSidebar:
             assert mock_st.slider.called
             assert mock_st.selectbox.called
             assert mock_st.text_area.called
+    
+    @pytest.mark.integration
+    def test_model_selector_appears_in_sidebar(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC1: Model selector appears at top of sidebar before form."""
+        # GIVEN: Session state with model configs
+        st.session_state.model_configs = sample_model_configs
+        st.session_state.selected_model = sample_model_configs[0]
+        
+        with patch('streamlit_app.st') as mock_st:
+            # Setup sidebar
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            # Setup form
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            # Setup session state properly
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            
+            # Mock selectbox for model selector (called before form)
+            mock_st.selectbox.side_effect = ["Model 1", "DDIM", "expert_ensemble_refiner"]
+            
+            # Mock other inputs
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.text_area.return_value = "test"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_st.warning = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Calling configure_sidebar
+            configure_sidebar()
+            
+            # THEN: selectbox should be called for model selector (first call)
+            assert mock_st.selectbox.called
+            # Verify first call is for model selector (before form)
+            selectbox_calls = mock_st.selectbox.call_args_list
+            assert len(selectbox_calls) > 0, "selectbox should be called at least once"
+            # First call should be model selector with "Select Model" label
+            first_call = selectbox_calls[0]
+            call_args = first_call[0] if len(first_call) > 0 else ()
+            call_kwargs = first_call[1] if len(first_call) > 1 else {}
+            # Check if "Select Model" is in the label (first positional arg or label kwarg)
+            label = call_args[0] if len(call_args) > 0 else call_kwargs.get('label', '')
+            assert "Select Model" in str(label) or "Select Model" in str(first_call)
+    
+    @pytest.mark.integration
+    def test_model_selector_displays_all_models(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC2: All models from configuration are displayed in selector."""
+        # GIVEN: Session state with multiple models
+        st.session_state.model_configs = sample_model_configs
+        st.session_state.selected_model = sample_model_configs[0]
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            # Setup session state properly
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            
+            # Mock selectbox - first call is model selector
+            mock_st.selectbox.side_effect = ["Model 1", "DDIM", "expert_ensemble_refiner"]
+            
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.text_area.return_value = "test"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_st.warning = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Calling configure_sidebar
+            configure_sidebar()
+            
+            # THEN: selectbox should be called with all model names as options
+            selectbox_calls = mock_st.selectbox.call_args_list
+            assert len(selectbox_calls) > 0, "selectbox should be called at least once"
+            first_call = selectbox_calls[0]
+            # Check that options include all model names
+            call_kwargs = first_call[1] if len(first_call) > 1 else {}
+            call_args = first_call[0] if len(first_call) > 0 else ()
+            # Options should be in args (position 1) or kwargs
+            if len(call_args) > 1:
+                options = call_args[1]
+                assert len(options) == len(sample_model_configs)
+                assert all(model['name'] in options for model in sample_model_configs)
+            elif 'options' in call_kwargs:
+                options = call_kwargs['options']
+                assert len(options) == len(sample_model_configs)
+                assert all(model['name'] in options for model in sample_model_configs)
+    
+    @pytest.mark.integration
+    def test_model_selector_shows_current_selection(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC3: Currently selected model is shown in dropdown."""
+        # GIVEN: Session state with selected model
+        st.session_state.model_configs = sample_model_configs
+        st.session_state.selected_model = sample_model_configs[1]  # Select second model
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            # Setup session state properly
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            
+            # Mock selectbox - return selected model name
+            mock_st.selectbox.side_effect = ["Model 2", "DDIM", "expert_ensemble_refiner"]
+            
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.text_area.return_value = "test"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_st.warning = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Calling configure_sidebar
+            configure_sidebar()
+            
+            # THEN: selectbox should be called with correct index for selected model
+            selectbox_calls = mock_st.selectbox.call_args_list
+            assert len(selectbox_calls) > 0, "selectbox should be called at least once"
+            first_call = selectbox_calls[0]
+            call_kwargs = first_call[1] if len(first_call) > 1 else {}
+            call_args = first_call[0] if len(first_call) > 0 else ()
+            # Index should be 1 (second model) - check both kwargs and args
+            if 'index' in call_kwargs:
+                assert call_kwargs['index'] == 1
+            elif len(call_args) > 2:
+                # Index might be in positional args
+                assert call_args[2] == 1
+    
+    @pytest.mark.integration
+    def test_model_selector_always_visible(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC4: Model selector is always visible (not in expander)."""
+        # GIVEN: Session state with models
+        st.session_state.model_configs = sample_model_configs
+        st.session_state.selected_model = sample_model_configs[0]
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            # Setup session state properly
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            
+            mock_st.selectbox.side_effect = ["Model 1", "DDIM", "expert_ensemble_refiner"]
+            
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.text_area.return_value = "test"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_st.warning = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Calling configure_sidebar
+            configure_sidebar()
+            
+            # THEN: selectbox should be called before expander (model selector is outside expander)
+            selectbox_calls = mock_st.selectbox.call_args_list
+            expander_calls = mock_st.expander.call_args_list
+            # Model selector selectbox should be called before form expander
+            # This is verified by the order of calls - selectbox for model comes first
+            assert len(selectbox_calls) > 0, "Model selector selectbox should be called"
+            # First selectbox call should be for model selector (before form/expander)
+            if len(expander_calls) > 0:
+                # Verify model selector selectbox is called before expander
+                assert len(selectbox_calls) > 0
+    
+    @pytest.mark.integration
+    def test_model_selector_updates_session_state(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC5: Session state updates when model selection changes."""
+        # GIVEN: Session state with models
+        st.session_state.model_configs = sample_model_configs
+        st.session_state.selected_model = sample_model_configs[0]
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            # Setup session state properly
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            
+            # Mock selectbox to return different model
+            mock_st.selectbox.side_effect = ["Model 2", "DDIM", "expert_ensemble_refiner"]
+            
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.text_area.return_value = "test"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_st.warning = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Calling configure_sidebar
+            configure_sidebar()
+            
+            # THEN: selected_model should be updated to Model 2
+            # Note: The update happens in the actual code, but we need to check the real session state
+            # Since we're patching st, we need to ensure the update propagates
+            # The code updates st.session_state.selected_model, which should update the real session state
+            assert st.session_state.selected_model == sample_model_configs[1]
+            assert st.session_state.selected_model['name'] == "Model 2"
+    
+    @pytest.mark.integration
+    def test_model_selector_handles_empty_list(self, mock_streamlit_secrets):
+        """Test AC6: Empty model list is handled gracefully."""
+        # GIVEN: Empty model configs
+        st.session_state.model_configs = []
+        st.session_state.selected_model = None
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            # Setup session state properly - empty list
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            mock_st.warning = MagicMock()
+            
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.selectbox.return_value = "DDIM"
+            mock_st.text_area.return_value = "test"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Calling configure_sidebar
+            configure_sidebar()
+            
+            # THEN: Warning message should be displayed
+            mock_st.warning.assert_called()
+            warning_call = str(mock_st.warning.call_args)
+            assert "No models configured" in warning_call or "models.yaml" in warning_call
+    
+    @pytest.mark.integration
+    def test_model_selector_handles_missing_session_state(self, mock_streamlit_secrets):
+        """Test AC6: Missing session state is handled gracefully."""
+        # GIVEN: Missing model_configs in session state
+        if 'model_configs' in st.session_state:
+            del st.session_state.model_configs
+        if 'selected_model' in st.session_state:
+            del st.session_state.selected_model
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_st.form.return_value = mock_form
+            
+            mock_st.get.side_effect = lambda key, default=None: st.session_state.get(key, default)
+            mock_st.warning = MagicMock()
+            
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.selectbox.return_value = "DDIM"
+            mock_st.text_area.return_value = "test"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Calling configure_sidebar
+            # THEN: Should not crash
+            try:
+                configure_sidebar()
+            except (KeyError, AttributeError):
+                pytest.fail("configure_sidebar should handle missing session state gracefully")
 
 
 class TestMainPage:

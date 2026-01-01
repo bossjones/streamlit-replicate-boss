@@ -135,6 +135,41 @@ def configure_sidebar() -> None:
     including the form for user inputs and the resources section.
     """
     with st.sidebar:
+        # Model selector - placed at top of sidebar before form
+        model_configs = st.session_state.get('model_configs', [])
+        selected_model = st.session_state.get('selected_model', None)
+        
+        if not model_configs:
+            st.warning("⚠️ No models configured. Please check models.yaml file.")
+        else:
+            # Get list of model names for selectbox options
+            model_names = [model.get('name', model.get('id', 'Unknown')) for model in model_configs]
+            
+            # Get current selection index
+            current_index = 0
+            if selected_model and selected_model.get('name'):
+                try:
+                    current_index = model_names.index(selected_model['name'])
+                except ValueError:
+                    # If selected model name not found, default to first
+                    current_index = 0
+            
+            # Model selector selectbox
+            selected_model_name = st.selectbox(
+                "Select Model",
+                options=model_names,
+                index=current_index,
+                key="model_selector"
+            )
+            
+            # Update session state when selection changes
+            if selected_model_name:
+                # Find the model object matching the selected name
+                for model in model_configs:
+                    if model.get('name') == selected_model_name:
+                        st.session_state.selected_model = model
+                        break
+        
         with st.form("my_form"):
             st.info("**Yo fam! Start here ↓**", icon="👋🏾")
             with st.expander(":rainbow[**Refine your output here**]"):
