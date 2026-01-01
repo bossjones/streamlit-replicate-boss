@@ -991,12 +991,21 @@ def main_page(submitted: bool, width: int, height: int, num_outputs: int,
                             # Displaying the image
                             for image in st.session_state.generated_image:
                                 with st.container():
-                                    st.image(image, caption="Generated Image 🎈",
-                                             use_column_width=True)
-                                    # Add image to the list
-                                    all_images.append(image)
+                                    # Convert FileOutput objects to URL strings
+                                    # FileOutput objects have a .url attribute or can be converted with str()
+                                    if hasattr(image, 'url'):
+                                        image_url = image.url
+                                    elif hasattr(image, '__str__'):
+                                        image_url = str(image)
+                                    else:
+                                        image_url = image
+                                    
+                                    st.image(image_url, caption="Generated Image 🎈",
+                                             use_container_width=True)
+                                    # Add image URL to the list
+                                    all_images.append(image_url)
 
-                                    response = requests.get(image)
+                                    response = requests.get(image_url)
                         # Save all generated images to session state
                         _set_session_state('all_images', all_images)
 
