@@ -18,7 +18,7 @@ st.set_page_config(page_title="Replicate Image Generator",
                    page_icon=":bridge_at_night:",
                    layout="wide")
 icon.show_icon(":foggy:")
-st.markdown("# :rainbow[Text-to-Image Artistry Studio]")
+st.markdown("# iamprofessorex's Artistry Studio")
 
 
 def _set_session_state(key: str, value: any) -> None:
