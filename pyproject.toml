@@ -21,7 +21,8 @@ addopts = [
     "--cov-report=html:htmlcov",
     "--cov-report=term-missing",
     "--cov-report=xml:cov.xml",
-    "--cov=src",
+    "--cov=.",
+    "--cov-config=pyproject.toml",
     "--durations-min=0.05",
     "--durations=10",
     "--junitxml=junit/test-results.xml",
@@ -44,7 +45,7 @@ python_classes = ["Test*"]
 python_files = ["*.py"]
 python_functions = ["test_*"]
 pythonpath = "."
-testpaths = ["src", "tests"]
+testpaths = ["tests"]
 timeout = 30
 timeout_method = "thread"
 
@@ -54,7 +55,7 @@ timeout_method = "thread"
 directory = "htmlcov"
 
 [tool.coverage.paths]
-source = ["src/"]
+source = ["."]
 
 [tool.coverage.report]
 exclude_also = [
@@ -103,7 +104,21 @@ concurrency = ["multiprocessing", "thread"]
 data_file = ".coverage"
 parallel = true
 relative_files = true
-source = ["src"]
+source = ["."]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/conftest.py",
+    "*/site-packages/*",
+    "*/.venv/*",
+    "*/bmad/*",
+    "*/docs/*",
+    "*/gallery/*",
+    "*/junit/*",
+    "*/logs/*",
+    "*/ai_docs/*",
+]
 
 [tool.coverage.xml]
 output = "cov.xml"
