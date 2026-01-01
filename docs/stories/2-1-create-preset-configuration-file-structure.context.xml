@@ -1,0 +1,193 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.1</storyId>
+    <title>Create Preset Configuration File Structure</title>
+    <status>drafted</status>
+    <generatedAt>2026-01-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-1-create-preset-configuration-file-structure.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>a standardized preset configuration format</iWant>
+    <soThat>model-specific settings can be stored and automatically applied</soThat>
+    <tasks>
+      <task id="1" ac="1,2">
+        <title>Create presets.yaml file structure</title>
+        <subtasks>
+          <subtask>Create `presets.yaml` file in project root directory</subtask>
+          <subtask>Define top-level `presets` array structure</subtask>
+          <subtask>Document schema in file comments (id, name, model_id, trigger_words, settings fields)</subtask>
+          <subtask>Ensure file follows YAML syntax standards</subtask>
+          <subtask>Testing: Verify file is valid YAML syntax (can be parsed without errors)</subtask>
+          <subtask>Testing: Verify file structure matches defined schema</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="2">
+        <title>Define preset schema with required and optional fields</title>
+        <subtasks>
+          <subtask>Define `id` field (string, required) - unique identifier for preset</subtask>
+          <subtask>Define `name` field (string, required) - display name for preset</subtask>
+          <subtask>Define `model_id` field (string, required) - links preset to model from models.yaml</subtask>
+          <subtask>Define `trigger_words` field (string or array, optional) - trigger words to inject into prompts</subtask>
+          <subtask>Define `settings` field (object, optional) - default parameter values (width, height, scheduler, etc.)</subtask>
+          <subtask>Document field types and requirements in file comments</subtask>
+          <subtask>Testing: Verify schema documentation is clear and complete</subtask>
+          <subtask>Testing: Verify schema matches tech spec requirements</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="3">
+        <title>Create default presets for each model</title>
+        <subtasks>
+          <subtask>Create default preset for helldiver model (model_id: "helldiver")</subtask>
+          <subtask>Create default preset for starship-trooper model (model_id: "starship-trooper")</subtask>
+          <subtask>Create default preset for Stability AI SDXL model (model_id: "sdxl")</subtask>
+          <subtask>Testing: Verify all three default presets are created</subtask>
+          <subtask>Testing: Verify preset model_id values match model ids from models.yaml</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="4">
+        <title>Ensure preset structure supports trigger words and settings</title>
+        <subtasks>
+          <subtask>Verify trigger_words field accepts string (single trigger word) or array (multiple trigger words)</subtask>
+          <subtask>Verify settings field accepts object with parameter key-value pairs</subtask>
+          <subtask>Document example preset with both trigger_words and settings populated</subtask>
+          <subtask>Testing: Verify preset structure can store trigger words (string and array formats)</subtask>
+          <subtask>Testing: Verify preset structure can store settings object with multiple parameters</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="5">
+        <title>Validate YAML syntax and schema compliance</title>
+        <subtasks>
+          <subtask>Verify presets.yaml file is valid YAML (no syntax errors)</subtask>
+          <subtask>Verify all presets have required fields (id, name, model_id)</subtask>
+          <subtask>Verify model_id values reference valid models from models.yaml</subtask>
+          <subtask>Verify file structure matches defined schema</subtask>
+          <subtask>Testing: Use YAML parser to validate syntax (yaml.safe_load() should succeed)</subtask>
+          <subtask>Testing: Verify schema validation catches missing required fields</subtask>
+          <subtask>Testing: Verify schema validation catches invalid model_id references</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Create `presets.yaml` file with structure linking presets to models via `model_id`</criterion>
+    <criterion id="2">Define schema: `presets` array with items containing `id`, `name`, `model_id`, `trigger_words`, `settings`</criterion>
+    <criterion id="3">Create at least one default preset for each model (helldiver, starship-trooper, Stability AI SDXL)</criterion>
+    <criterion id="4">Preset structure supports trigger words and default parameter values</criterion>
+    <criterion id="5">File structure is valid YAML and follows defined schema</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/PRD.md" title="Product Requirements Document">
+        <section>Preset Management (FR012-FR016)</section>
+        <snippet>The system must support preset configurations that store trigger words and default settings per model. The system must automatically load and apply a preset when a model is selected, injecting trigger words into the prompt field. The system must store presets in a file-based storage system (YAML or JSON) linked to models via model identifier.</snippet>
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification">
+        <section>Preset System (Epic 2)</section>
+        <snippet>presets.yaml (YAML format - Epic 2): Schema: `presets` array with `id`, `name`, `model_id`, `trigger_words`, `settings`. File location: Project root (`{project-root}/presets.yaml`). Each preset contains `id`, `name`, `model_id`, `trigger_words` (optional), and `settings` (optional). The `settings` object can contain any parameter values that will be applied when preset is used.</snippet>
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification">
+        <section>Configuration File Format</section>
+        <snippet>Use YAML format for presets.yaml, matching models.yaml pattern. YAML is human-readable, supports comments, and is easy to version control. Presets must link to models via `model_id` field, which references the `id` field from models.yaml. This creates a relationship between models and their presets.</snippet>
+      </doc>
+      <doc path="docs/epics.md" title="Epic Breakdown">
+        <section>Story 2.1</section>
+        <snippet>Create `presets.yaml` file with structure linking presets to models via `model_id`. Define schema: `presets` array with items containing `id`, `name`, `model_id`, `trigger_words`, `settings`. Create at least one default preset for each model (helldiver, starship-trooper, Stability AI SDXL). Preset structure supports trigger words and default parameter values.</snippet>
+      </doc>
+      <doc path="docs/stories/2-1-create-preset-configuration-file-structure.md" title="Story 2.1">
+        <section>Dev Notes</section>
+        <snippet>Follow the same pattern as `models.yaml` - YAML format with schema documentation in comments, located in project root. Use clear field names and structure. Document schema in file comments (like models.yaml does) with field descriptions, types, and examples. Place presets.yaml in project root (`{project-root}/presets.yaml`), matching the location of `models.yaml`.</snippet>
+      </doc>
+      <doc path="docs/stories/1-7-handle-configuration-errors-and-edge-cases.md" title="Story 1.7 Completion Notes">
+        <section>Learnings</section>
+        <snippet>Use `yaml.safe_load()` for parsing (from PyYAML library). Validate structure after parsing. Include line numbers in error messages when YAML syntax errors occur. Document schema in file comments with field descriptions, types, and examples. This helps developers understand the structure and prevents errors.</snippet>
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Documentation">
+        <section>Data Architecture</section>
+        <snippet>Configuration files use YAML format for human readability and version control. Session state manages client-side data persistence. External data sources include Replicate API for image generation.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact path="models.yaml" kind="configuration" symbol="models" lines="1-49" reason="Reference implementation for YAML configuration file structure, schema documentation pattern, and file location. Presets.yaml should follow the same pattern: YAML format, schema comments, project root location, clear field definitions."/>
+      <artifact path="config/model_loader.py" kind="module" symbol="load_models_config" lines="10-110" reason="Reference for YAML parsing patterns using yaml.safe_load(), validation approach, error handling with line numbers, and structure validation. Future preset loading will follow similar patterns."/>
+      <artifact path="config/model_loader.py" kind="module" symbol="validate_model_config" lines="113-169" reason="Reference for validation patterns: required field checking, type validation, format validation. Preset validation should follow similar patterns for id, name, model_id, trigger_words, settings fields."/>
+      <artifact path="streamlit_app.py" kind="application" symbol="initialize_session_state" lines="85-315" reason="Shows how models.yaml is loaded at startup. Future preset loading will be integrated similarly. Demonstrates error handling patterns and fallback behavior that presets should follow."/>
+    </code>
+    <dependencies>
+      <ecosystem name="python">
+        <package name="pyyaml" version=">=6.0.1" reason="Required for parsing presets.yaml file. Already in dependencies."/>
+        <package name="streamlit" version=">=1.50.0" reason="UI framework. Already in dependencies."/>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Configuration File Pattern: Follow the same pattern as `models.yaml` - YAML format with schema documentation in comments, located in project root. Use clear field names and structure.</constraint>
+    <constraint>YAML Validation: Use `yaml.safe_load()` for parsing (from PyYAML library). Validate structure after parsing. Include line numbers in error messages when YAML syntax errors occur.</constraint>
+    <constraint>Schema Documentation: Document schema in file comments (like models.yaml does) with field descriptions, types, and examples. This helps developers understand the structure and prevents errors.</constraint>
+    <constraint>File Location: Place presets.yaml in project root (`{project-root}/presets.yaml`), matching the location of `models.yaml` for consistency and easy discovery.</constraint>
+    <constraint>Preset Schema: Presets must link to models via `model_id` field, which references the `id` field from models.yaml. This creates a relationship between models and their presets.</constraint>
+    <constraint>Preset Structure: Each preset contains `id`, `name`, `model_id`, `trigger_words` (optional), and `settings` (optional). The `settings` object can contain any parameter values that will be applied when preset is used.</constraint>
+    <constraint>Default Presets: Each model should have at least one default preset. Default presets should include trigger words from the model configuration (if available) and sensible default parameter values.</constraint>
+    <constraint>Trigger Words: Trigger words can be stored as a single string or an array of strings. They will be injected into prompts when preset is applied.</constraint>
+    <constraint>Settings Object: Settings object contains key-value pairs for generation parameters (width, height, scheduler, num_inference_steps, guidance_scale, etc.). These values will override defaults when preset is applied.</constraint>
+    <constraint>File Naming: Use lowercase with hyphens: `presets.yaml` (consistent with `models.yaml` naming convention).</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="presets.yaml file structure" kind="configuration file">
+      <signature>
+presets:
+  - id: string (required) - Unique identifier for preset
+  - name: string (required) - Display name for preset
+  - model_id: string (required) - Links preset to model from models.yaml (references model.id)
+  - trigger_words: string | array[string] (optional) - Trigger words to inject into prompts
+  - settings: object (optional) - Default parameter values (width, height, scheduler, etc.)
+      </signature>
+      <path>presets.yaml</path>
+      <notes>This file will be loaded by future preset_manager.py module (Story 2.2). The structure must match the schema defined in tech-spec.md and epics.md.</notes>
+    </interface>
+    <interface name="models.yaml reference" kind="configuration file">
+      <signature>
+models:
+  - id: string (required) - Model identifier (referenced by preset.model_id)
+  - name: string (required) - Model display name
+  - endpoint: string (required) - Replicate API endpoint
+  - trigger_words: string | array[string] (optional) - Model-specific trigger words
+      </signature>
+      <path>models.yaml</path>
+      <notes>Presets reference models via model_id field. All preset.model_id values must reference valid model.id values from models.yaml.</notes>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use pytest 8.0.0+ for unit testing. Test files should be in `tests/` directory. Use Streamlit's AppTest framework (included with Streamlit 1.50.0+) for integration tests. For Story 2.1, testing should focus on YAML file validation: syntax correctness, schema compliance, and documentation completeness. Testing can be done via Python yaml library parsing and manual review. Reference test patterns from `tests/test_model_loader.py` for YAML validation approaches. Follow error handling patterns from Story 1.7: graceful degradation, clear error messages with context, fallback behavior.
+    </standards>
+    <locations>
+      <location>tests/</location>
+      <location>tests/test_model_loader.py</location>
+      <location>tests/integration/</location>
+      <location>tests/unit/</location>
+    </locations>
+    <ideas>
+      <test ac="1">Verify presets.yaml file exists at project root and is valid YAML syntax (use yaml.safe_load())</test>
+      <test ac="2">Validate schema structure: presets array exists, each preset has required fields (id, name, model_id), optional fields use correct types</test>
+      <test ac="2">Test validate preset structure: verify id is string, name is string, model_id is string, trigger_words is string or array, settings is object</test>
+      <test ac="3">Verify all 3 default presets are created (helldiver-default, starship-trooper-default, sdxl-default)</test>
+      <test ac="3">Verify preset model_id values match model ids from models.yaml (helldiver, starship-trooper, sdxl)</test>
+      <test ac="4">Test trigger_words field accepts string format (single trigger word)</test>
+      <test ac="4">Test trigger_words field accepts array format (multiple trigger words)</test>
+      <test ac="4">Test settings field accepts object with parameter key-value pairs (width, height, scheduler, etc.)</test>
+      <test ac="5">Parse YAML file using Python yaml library to ensure no syntax errors, verify schema compliance programmatically</test>
+      <test ac="5">Test schema validation catches missing required fields (id, name, model_id)</test>
+      <test ac="5">Test schema validation catches invalid model_id references (model_id that doesn't exist in models.yaml)</test>
+      <test ac="5">Review documentation (inline comments) for clarity and completeness, verify examples are present</test>
+    </ideas>
+  </tests>
+</story-context>

@@ -49,7 +49,7 @@ development_status:
 
   # Epic 2: Preset System & Enhanced Model Switching
   epic-2: backlog
-  2-1-create-preset-configuration-file-structure: backlog
+  2-1-create-preset-configuration-file-structure: done
   2-2-load-and-store-preset-configurations: backlog
   2-3-display-model-information-in-sidebar: backlog
   2-4-auto-apply-preset-on-model-selection: backlog

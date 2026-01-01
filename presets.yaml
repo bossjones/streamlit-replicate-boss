@@ -1,0 +1,66 @@
+# Preset Configuration File
+# This file defines preset configurations for AI image generation models.
+# Presets link to models via model_id and can include trigger words and default settings.
+#
+# Schema:
+#   presets: array of preset objects
+#   Each preset object contains:
+#     - id: string (required) - Unique identifier for the preset
+#     - name: string (required) - Display name shown in UI
+#     - model_id: string (required) - Links preset to model from models.yaml (references model.id)
+#     - trigger_words: string or array (optional) - Trigger words to inject into prompts when preset is applied
+#     - settings: object (optional) - Default parameter values (width, height, scheduler, num_inference_steps, guidance_scale, etc.)
+#
+# Example:
+#   presets:
+#     - id: "sdxl-default"
+#       name: "SDXL Default"
+#       model_id: "sdxl"
+#       trigger_words: []
+#       settings:
+#         width: 1024
+#         height: 1024
+#         scheduler: "DPMSolverMultistep"
+#
+# Notes:
+#   - model_id must reference a valid model.id from models.yaml
+#   - trigger_words can be a single string or an array of strings
+#   - settings object can contain any parameter values that will be applied when preset is used
+#   - Each model should have at least one default preset
+
+presets:
+  # Stability AI SDXL - Default preset
+  - id: "sdxl-default"
+    name: "SDXL Default"
+    model_id: "sdxl"
+    trigger_words: []  # Optional: No specific trigger words for SDXL
+    settings:  # Optional: Default parameter values
+      width: 1024
+      height: 1024
+      scheduler: "DPMSolverMultistep"
+      num_inference_steps: 50
+      guidance_scale: 7.5
+
+  # Helldiver - Default preset with tactical armor trigger word
+  - id: "helldiver-default"
+    name: "Helldiver Default"
+    model_id: "helldiver"
+    trigger_words: ["HELLDIVERB01TACTICALARMOR"]  # Optional: Model-specific trigger words
+    settings:  # Optional: Default parameter values
+      width: 1024
+      height: 1024
+      scheduler: "DPMSolverMultistep"
+      num_inference_steps: 50
+      guidance_scale: 7.5
+
+  # Starship Trooper - Default preset with uniform trigger word
+  - id: "starship-trooper-default"
+    name: "Starship Trooper Default"
+    model_id: "starship-trooper"
+    trigger_words: ["STARSHIPTROOPERUNIFORMWITHHELMET"]  # Optional: Model-specific trigger words
+    settings:  # Optional: Default parameter values
+      width: 1024
+      height: 1024
+      scheduler: "DPMSolverMultistep"
+      num_inference_steps: 50
+      guidance_scale: 7.5
