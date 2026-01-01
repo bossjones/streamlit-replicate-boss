@@ -1134,13 +1134,9 @@ class TestMainPageGallery:
             # THEN: Gallery should have correct image paths
             call_kwargs = mock_image_select.call_args[1]
             expected_images = [
-                "gallery/farmer_sunset.png",
-                "gallery/astro_on_unicorn.png",
-                "gallery/friends.png",
-                "gallery/wizard.png",
-                "gallery/puppy.png",
-                "gallery/cheetah.png",
-                "gallery/viking.png",
+                "gallery/helldiver-b01-tactical-armor1.png",
+                "gallery/firebeardjones2.png",
+                "gallery/starship-trooper-uniform-with-helmet1.webp",
             ]
             assert call_kwargs['images'] == expected_images
             assert len(call_kwargs['captions']) == len(expected_images)
