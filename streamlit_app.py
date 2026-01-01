@@ -965,6 +965,7 @@ def main_page(submitted: bool, width: int, height: int, num_outputs: int,
                     
                     # Calling the replicate API to get the image
                     with generated_images_placeholder.container():
+                        logger.info(f"Calling Replicate API with model endpoint: {model_endpoint}")
                         all_images = []  # List to store all generated images
                         output = replicate.run(
                             model_endpoint,

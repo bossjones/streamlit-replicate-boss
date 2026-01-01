@@ -2,5 +2,19 @@
 base="light"
 font="monospace"
 
+[logger]
+# Level of logging for Streamlit's internal logger: "error", "warning", "info", or "debug".
+# Set to "debug" for maximum verbosity to help with debugging.
+level = "debug"
+# Enhanced format with multiple LogRecord attributes for comprehensive debugging:
+# - %(asctime)s.%(msecs)03d: Timestamp with milliseconds
+# - %(levelname)-8s: Log level (left-aligned, 8 chars)
+# - %(name)s: Logger name
+# - %(filename)s:%(lineno)d: Source file and line number
+# - %(funcName)s: Function name where logging was called
+# - %(message)s: The actual log message
+# See: https://docs.python.org/3/library/logging.html#formatter-objects
+messageFormat = "%(asctime)s.%(msecs)03d | %(levelname)-8s | %(name)s | %(filename)s:%(lineno)d | %(funcName)s() | %(message)s"
+
 [browser]
 gatherUsageStats = false
