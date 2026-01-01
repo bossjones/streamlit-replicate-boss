@@ -573,6 +573,7 @@ def configure_sidebar() -> None:
                     
                     # Validate selected model exists in configs
                     if new_selected_model is None:
+                        logger.warning(f"Invalid model selection: {selected_model_name}. Model not found in configuration.")
                         st.error(f"⚠️ Invalid model selection: {selected_model_name}. Please select a valid model.")
                     else:
                         # Detect if model changed
@@ -975,7 +976,7 @@ def main_page(submitted: bool, width: int, height: int, num_outputs: int,
                                 "scheduler": scheduler,
                                 "num_inference_steps": num_inference_steps,
                                 "guidance_scale": guidance_scale,
-                                "prompt_stregth": prompt_strength,
+                                "prompt_strength": prompt_strength,
                                 "refine": refine,
                                 "high_noise_frac": high_noise_frac
                             }
