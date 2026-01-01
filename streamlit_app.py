@@ -18,7 +18,7 @@ st.set_page_config(page_title="Replicate Image Generator",
                    page_icon=":bridge_at_night:",
                    layout="wide")
 icon.show_icon(":foggy:")
-st.markdown("# :rainbow[Text-to-Image Artistry Studio]")
+st.markdown("# iamprofessorex's Artistry Studio")
 
 
 def _set_session_state(key: str, value: any) -> None:
@@ -573,6 +573,7 @@ def configure_sidebar() -> None:
                     
                     # Validate selected model exists in configs
                     if new_selected_model is None:
+                        logger.warning(f"Invalid model selection: {selected_model_name}. Model not found in configuration.")
                         st.error(f"⚠️ Invalid model selection: {selected_model_name}. Please select a valid model.")
                     else:
                         # Detect if model changed
@@ -905,9 +906,9 @@ def configure_sidebar() -> None:
             ---
             Follow me on:
 
-            𝕏 → [@tonykipkemboi](https://twitter.com/tonykipkemboi)
+            𝕏 → [@bossjones](https://twitter.com/bossjones)
 
-            LinkedIn → [Tony Kipkemboi](https://www.linkedin.com/in/tonykipkemboi)
+            LinkedIn → [Tony Dark](https://www.linkedin.com/in/bossjones)
 
             """
         )
@@ -964,6 +965,7 @@ def main_page(submitted: bool, width: int, height: int, num_outputs: int,
                     
                     # Calling the replicate API to get the image
                     with generated_images_placeholder.container():
+                        logger.info(f"Calling Replicate API with model endpoint: {model_endpoint}")
                         all_images = []  # List to store all generated images
                         output = replicate.run(
                             model_endpoint,
@@ -975,7 +977,7 @@ def main_page(submitted: bool, width: int, height: int, num_outputs: int,
                                 "scheduler": scheduler,
                                 "num_inference_steps": num_inference_steps,
                                 "guidance_scale": guidance_scale,
-                                "prompt_stregth": prompt_strength,
+                                "prompt_strength": prompt_strength,
                                 "refine": refine,
                                 "high_noise_frac": high_noise_frac
                             }
@@ -989,12 +991,21 @@ def main_page(submitted: bool, width: int, height: int, num_outputs: int,
                             # Displaying the image
                             for image in st.session_state.generated_image:
                                 with st.container():
-                                    st.image(image, caption="Generated Image 🎈",
-                                             use_column_width=True)
-                                    # Add image to the list
-                                    all_images.append(image)
+                                    # Convert FileOutput objects to URL strings
+                                    # FileOutput objects have a .url attribute or can be converted with str()
+                                    if hasattr(image, 'url'):
+                                        image_url = image.url
+                                    elif hasattr(image, '__str__'):
+                                        image_url = str(image)
+                                    else:
+                                        image_url = image
+                                    
+                                    st.image(image_url, caption="Generated Image 🎈",
+                                             use_container_width=True)
+                                    # Add image URL to the list
+                                    all_images.append(image_url)
 
-                                    response = requests.get(image)
+                                    response = requests.get(image_url)
                         # Save all generated images to session state
                         _set_session_state('all_images', all_images)
 
@@ -1101,18 +1112,15 @@ def main_page(submitted: bool, width: int, height: int, num_outputs: int,
         img = image_select(
             label="Like what you see? Right-click and save! It's not stealing if we're sharing! 😉",
             images=[
-                "gallery/farmer_sunset.png", "gallery/astro_on_unicorn.png",
-                "gallery/friends.png", "gallery/wizard.png", "gallery/puppy.png",
-                "gallery/cheetah.png", "gallery/viking.png",
+                "gallery/helldiver-b01-tactical-armor1.png",
+                "gallery/firebeardjones2.png",
+                "gallery/starship-trooper-uniform-with-helmet1.webp",
             ],
-            captions=["A farmer tilling a farm with a tractor during sunset, cinematic, dramatic",
-                      "An astronaut riding a rainbow unicorn, cinematic, dramatic",
-                      "A group of friends laughing and dancing at a music festival, joyful atmosphere, 35mm film photography",
-                      "A wizard casting a spell, intense magical energy glowing from his hands, extremely detailed fantasy illustration",
-                      "A cute puppy playing in a field of flowers, shallow depth of field, Canon photography",
-                      "A cheetah mother nurses her cubs in the tall grass of the Serengeti. The early morning sun beams down through the grass. National Geographic photography by Frans Lanting",
-                      "A close-up portrait of a bearded viking warrior in a horned helmet. He stares intensely into the distance while holding a battle axe. Dramatic mood lighting, digital oil painting",
-                      ],
+            captions=[
+                "FIREBEARDJONES wearing HELLDIVERB01TACTICALARMOR, standing on a moon like planet, helmet in hand, beard of fire.",
+                "FIREBEARDJONES wearing a suit, full body",
+                "a man wearing STARSHIPTROOPERUNIFORMWITHHELMET engaged in a fierce ball",
+            ],
             use_container_width=True
         )
 

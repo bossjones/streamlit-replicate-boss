@@ -2,6 +2,7 @@
 import pytest
 import requests
 import yaml
+import time
 from unittest.mock import Mock, patch, MagicMock
 import streamlit as st
 from streamlit_app import configure_sidebar, main_page, main, initialize_session_state
@@ -1133,13 +1134,9 @@ class TestMainPageGallery:
             # THEN: Gallery should have correct image paths
             call_kwargs = mock_image_select.call_args[1]
             expected_images = [
-                "gallery/farmer_sunset.png",
-                "gallery/astro_on_unicorn.png",
-                "gallery/friends.png",
-                "gallery/wizard.png",
-                "gallery/puppy.png",
-                "gallery/cheetah.png",
-                "gallery/viking.png",
+                "gallery/helldiver-b01-tactical-armor1.png",
+                "gallery/firebeardjones2.png",
+                "gallery/starship-trooper-uniform-with-helmet1.webp",
             ]
             assert call_kwargs['images'] == expected_images
             assert len(call_kwargs['captions']) == len(expected_images)
@@ -3359,3 +3356,149 @@ class TestEnhancedUIUpdatesForModelSwitching:
             # THEN: Last selected model should be correctly applied (model2)
             assert st.session_state.selected_model['id'] == model2['id'], \
                 "Last selected model (model2) should be correctly applied"
+    
+    @pytest.mark.integration
+    def test_ui_updates_complete_within_one_second(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC2: UI updates complete in <1 second performance requirement."""
+        # GIVEN: Multiple models
+        model1 = sample_model_configs[0]
+        model2 = sample_model_configs[1] if len(sample_model_configs) > 1 else {
+            'id': 'model2', 'name': 'Model 2', 'endpoint': 'owner/model2:version'
+        }
+        
+        st.session_state.model_configs = [model1, model2]
+        st.session_state.selected_model = model1
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            # Mock session state access
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            
+            # Mock selectbox - first call is model selector, then form selectboxes
+            mock_st.selectbox.side_effect = [model2['name'], "DDIM", "expert_ensemble_refiner"]
+            mock_st.warning = MagicMock()
+            mock_st.info = MagicMock()
+            mock_st.success = MagicMock()
+            mock_st.divider = MagicMock()
+            mock_st.subheader = MagicMock()
+            mock_st.caption = MagicMock()
+            mock_st.markdown = MagicMock()
+            
+            # Mock form
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.form.return_value = mock_form
+            
+            # Mock form inputs
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.text_area.return_value = "test prompt"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Measuring time from model selection change to UI update completion
+            start_time = time.time()
+            configure_sidebar()
+            end_time = time.time()
+            
+            elapsed_time = end_time - start_time
+            
+            # THEN: UI updates should complete within 1 second (AC2 requirement)
+            assert elapsed_time < 1.0, \
+                f"UI updates should complete in <1 second, but took {elapsed_time:.3f} seconds"
+            
+            # Verify that model was actually switched
+            assert st.session_state.selected_model['id'] == model2['id'], \
+                "Model should be switched to model2"
+    
+    @pytest.mark.integration
+    def test_rapid_consecutive_model_switching_handles_race_conditions(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC5: Multiple rapid consecutive model switches work without race conditions."""
+        # GIVEN: Multiple models
+        model1 = sample_model_configs[0]
+        model2 = sample_model_configs[1] if len(sample_model_configs) > 1 else {
+            'id': 'model2', 'name': 'Model 2', 'endpoint': 'owner/model2:version'
+        }
+        
+        st.session_state.model_configs = [model1, model2]
+        st.session_state.selected_model = model1
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            # Mock session state access
+            mock_st.session_state = st.session_state
+            mock_st.get = lambda key, default=None: st.session_state.get(key, default)
+            
+            # Simulate rapid consecutive switches: model1 -> model2 -> model1 -> model2
+            # Each configure_sidebar call represents one model switch
+            switch_sequence = [
+                (model2['name'], "DDIM", "expert_ensemble_refiner"),  # Switch 1: model1 -> model2
+                (model1['name'], "DDIM", "expert_ensemble_refiner"),  # Switch 2: model2 -> model1
+                (model2['name'], "DDIM", "expert_ensemble_refiner"),  # Switch 3: model1 -> model2
+            ]
+            
+            mock_st.selectbox.side_effect = [item for sublist in switch_sequence for item in sublist]
+            mock_st.warning = MagicMock()
+            mock_st.info = MagicMock()
+            mock_st.success = MagicMock()
+            mock_st.divider = MagicMock()
+            mock_st.subheader = MagicMock()
+            mock_st.caption = MagicMock()
+            mock_st.markdown = MagicMock()
+            
+            # Mock form
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.form.return_value = mock_form
+            
+            # Mock form inputs
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.text_area.return_value = "test prompt"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            
+            # WHEN: Performing rapid consecutive switches
+            # Switch 1: model1 -> model2
+            mock_st.selectbox.side_effect = [model2['name'], "DDIM", "expert_ensemble_refiner"]
+            configure_sidebar()
+            assert st.session_state.selected_model['id'] == model2['id'], "After switch 1, should be model2"
+            
+            # Switch 2: model2 -> model1
+            mock_st.selectbox.side_effect = [model1['name'], "DDIM", "expert_ensemble_refiner"]
+            configure_sidebar()
+            assert st.session_state.selected_model['id'] == model1['id'], "After switch 2, should be model1"
+            
+            # Switch 3: model1 -> model2
+            mock_st.selectbox.side_effect = [model2['name'], "DDIM", "expert_ensemble_refiner"]
+            configure_sidebar()
+            
+            # THEN: Last selected model (model2) should be correctly applied, no race conditions
+            assert st.session_state.selected_model['id'] == model2['id'], \
+                "After rapid consecutive switches, last selected model (model2) should be correctly applied"
+            
+            # Verify no state confusion - selected model should match what we set
+            final_model = st.session_state.selected_model
+            assert final_model['id'] == model2['id'], \
+                "Final model state should be model2 after all switches"
