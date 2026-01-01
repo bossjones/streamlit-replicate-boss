@@ -1,0 +1,132 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>5</storyId>
+    <title>Implement Basic Model Switching</title>
+    <status>drafted</status>
+    <generatedAt>2026-01-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-5-implement-basic-model-switching.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>switch between models instantly</iWant>
+    <soThat>I can use different models without leaving the application</soThat>
+    <tasks>
+      <task id="1" ac="1,2,3">Implement model switching logic with state preservation</task>
+      <task id="2" ac="2,4">Ensure UI updates immediately on model selection</task>
+      <task id="3" ac="5">Handle rapid model switching reliably</task>
+      <task id="4" ac="6">Handle edge cases gracefully</task>
+      <task id="5" ac="1,4">Integrate with existing model selector component</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <ac id="1">Model selection in dropdown updates `st.session_state.selected_model`</ac>
+    <ac id="2">Switching happens instantly (&lt;1 second, NFR001) without page reload</ac>
+    <ac id="3">Current prompt and settings are preserved when switching (FR008)</ac>
+    <ac id="4">UI reflects selected model (dropdown shows current selection)</ac>
+    <ac id="5">Switching works reliably across multiple rapid selections</ac>
+    <ac id="6">Handle edge cases: switching before config loads, invalid model selection</ac>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 1.5: Implement Basic Model Switching">
+        Story 1.5 defines user story for instant model switching with state preservation. Acceptance criteria include instant switching (&lt;1 second), preserving prompt and settings, UI reflection, and handling edge cases.
+      </doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Model Switching &amp; State Management">
+        FR007: System must allow users to switch between models instantly without page reload. FR008: System must preserve current prompt text and user-entered settings when switching models. NFR001: Model switching must complete in less than 1 second.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Model Switching (Story 1.5)">
+        Implementation strategy: Model selector dropdown updates `st.session_state.selected_model` on change. Preserve current state (prompt and settings) before switch, update selected model, then restore preserved state. UI updates immediately via Streamlit's reactive framework. Performance: &lt;1 second achieved through session state, no API calls.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="State Preservation Strategy">
+        When switching models: capture current prompt text and settings before updating selected model. Store in `st.session_state.preserved_prompt` and `st.session_state.preserved_settings`. Restore after model switch to maintain user workflow continuity.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Documentation" section="State Management">
+        Application uses Streamlit's session state to manage client-side data. State persists across page interactions (form submissions, etc.). Session state structure includes `st.session_state.generated_image` and `st.session_state.all_images`.
+      </doc>
+      <doc path="docs/stories/1-4-create-model-selector-ui-component.md" title="Story 1.4" section="Completion Notes List">
+        Model selector implemented in `configure_sidebar()` function at top of sidebar. Uses `st.selectbox()` with options from `st.session_state.model_configs`. Updates `st.session_state.selected_model` when selection changes. Streamlit's reactive framework automatically updates UI when session state changes.
+      </doc>
+    </docs>
+    <code>
+      <artifact path="streamlit_app.py" kind="main application" symbol="configure_sidebar()" lines="130-223" reason="Function where model switching logic must be implemented. Currently contains model selector (lines 138-171) that updates session state. Need to add state preservation logic before model switch." />
+      <artifact path="streamlit_app.py" kind="main application" symbol="initialize_session_state()" lines="67-127" reason="Initializes `st.session_state.model_configs` and `st.session_state.selected_model`. Model switching must work with this existing session state structure." />
+      <artifact path="streamlit_app.py" kind="main application" symbol="main_page()" lines="226-335" reason="Main page function receives form values including prompt and settings. These values need to be preserved during model switching." />
+      <artifact path="config/model_loader.py" kind="module" symbol="load_models_config()" lines="10-105" reason="Loads model configurations from models.yaml. Model switching must validate that selected model exists in loaded configs." />
+      <artifact path="tests/integration/test_streamlit_app.py" kind="test" symbol="TestConfigureSidebar" lines="9-436" reason="Existing test suite for sidebar configuration. Need to add tests for model switching state preservation, rapid switching, and edge cases." />
+    </code>
+    <dependencies>
+      <ecosystem name="python">
+        <package name="streamlit" version="&gt;=1.50.0" reason="UI framework with session state management and reactive updates" />
+        <package name="pyyaml" version="&gt;=6.0.1" reason="YAML parsing for model configuration files" />
+        <package name="pytest" version="&gt;=8.0.0" reason="Test framework for integration tests" />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>State preservation: Capture current prompt text and settings before updating selected model. Store in `st.session_state.preserved_prompt` and `st.session_state.preserved_settings`. Restore after model switch.</constraint>
+    <constraint>Performance: Model switching must complete in &lt;1 second (NFR001). Achieved through session state management, no API calls required. No page reload needed.</constraint>
+    <constraint>Error handling: Handle edge cases gracefully - switching before config loads, invalid model selection, missing session state. Display user-friendly error messages, don't crash application.</constraint>
+    <constraint>Integration: Model switching logic must be implemented in `configure_sidebar()` function, integrated with existing model selector component from Story 1.4.</constraint>
+    <constraint>Session state access: Use safe access patterns with `st.session_state.get()` for defensive programming. Access `st.session_state.model_configs`, `st.session_state.selected_model`, and form values.</constraint>
+    <constraint>Reactive framework: Leverage Streamlit's reactive framework for automatic UI updates. No additional update logic needed for UI reflection.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="Streamlit Session State" kind="state management">
+      <signature>
+        st.session_state.model_configs: List[Dict[str, Any]]
+        st.session_state.selected_model: Dict[str, Any]
+        st.session_state.preserved_prompt: str (new)
+        st.session_state.preserved_settings: Dict[str, Any] (new)
+      </signature>
+      <path>streamlit_app.py</path>
+      <description>Session state structure for model management. `model_configs` contains all loaded models. `selected_model` contains currently selected model. New preserved state for prompt and settings during model switching.</description>
+    </interface>
+    <interface name="Model Selector Widget" kind="UI component">
+      <signature>
+        st.selectbox(
+          "Select Model",
+          options=model_names,
+          index=current_index,
+          key="model_selector"
+        )
+      </signature>
+      <path>streamlit_app.py:158-163</path>
+      <description>Model selector dropdown that triggers model switching. Updates `st.session_state.selected_model` when selection changes. Need to add state preservation logic before this update.</description>
+    </interface>
+    <interface name="Form Values" kind="function return">
+      <signature>
+        configure_sidebar() -> Tuple[submitted, width, height, num_outputs, scheduler, num_inference_steps, guidance_scale, prompt_strength, refine, high_noise_frac, prompt, negative_prompt]
+      </signature>
+      <path>streamlit_app.py:130-223</path>
+      <description>Form values returned from sidebar configuration. Prompt and settings (width, height, scheduler, etc.) need to be preserved during model switching.</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use Streamlit's AppTest framework for integration testing (included with Streamlit 1.50.0+). Test state preservation, UI updates, rapid switching, and edge cases. Follow testing patterns from Story 1.4. Use pytest for test organization. Tests should verify acceptance criteria with clear assertions.
+    </standards>
+    <locations>
+      <location>tests/integration/test_streamlit_app.py</location>
+      <location>tests/unit/</location>
+    </locations>
+    <ideas>
+      <test ac="1">Test that model selector dropdown updates `st.session_state.selected_model` when selection changes</test>
+      <test ac="2">Test that model switching completes in &lt;1 second without page reload</test>
+      <test ac="3">Test that current prompt and settings are preserved when switching models</test>
+      <test ac="4">Test that UI reflects selected model (dropdown shows current selection)</test>
+      <test ac="5">Test rapid model switching (5+ switches in quick succession) for reliability</test>
+      <test ac="6">Test edge cases: switching before config loads, invalid model selection, missing session state</test>
+      <test integration="true">Test state preservation during model switch - verify prompt and settings are captured before switch and restored after</test>
+      <test integration="true">Test rapid switching - verify no state corruption or UI flicker during multiple rapid switches</test>
+      <test integration="true">Test error handling - verify graceful handling when config hasn't loaded or invalid model selected</test>
+    </ideas>
+  </tests>
+</story-context>
