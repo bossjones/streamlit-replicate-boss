@@ -1,6 +1,6 @@
 # Story 1.2: Load and Validate Model Configuration
 
-Status: drafted
+Status: review
 
 ## Story
 
@@ -20,66 +20,66 @@ So that all available models are ready to use when I open the app.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create config module structure (AC: 1)
-  - [ ] Create `config/` directory at project root
-  - [ ] Create `config/__init__.py` to make it a Python package
-  - [ ] Create `config/model_loader.py` module file
-  - [ ] Testing: Verify module can be imported
+- [x] Task 1: Create config module structure (AC: 1)
+  - [x] Create `config/` directory at project root
+  - [x] Create `config/__init__.py` to make it a Python package
+  - [x] Create `config/model_loader.py` module file
+  - [x] Testing: Verify module can be imported
 
-- [ ] Task 2: Install PyYAML dependency (AC: 1, 2)
-  - [ ] Add `pyyaml>=6.0.1` to `pyproject.toml` dependencies
-  - [ ] Run `uv sync` to install dependency
-  - [ ] Verify PyYAML can be imported in Python
-  - [ ] Testing: Import yaml module successfully
+- [x] Task 2: Install PyYAML dependency (AC: 1, 2)
+  - [x] Add `pyyaml>=6.0.1` to `pyproject.toml` dependencies
+  - [x] Run `uv sync` to install dependency
+  - [x] Verify PyYAML can be imported in Python
+  - [x] Testing: Import yaml module successfully
 
-- [ ] Task 3: Implement load_models_config() function (AC: 1, 2, 5)
-  - [ ] Create `load_models_config(file_path: str = "models.yaml") -> List[Dict]` function
-  - [ ] Use `yaml.safe_load()` to parse YAML file
-  - [ ] Validate structure: check for `models` key, ensure it's a list
-  - [ ] Validate each model: required fields (`id`, `name`, `endpoint`) present
-  - [ ] Return list of model dictionaries
-  - [ ] Testing: Test with valid models.yaml file
+- [x] Task 3: Implement load_models_config() function (AC: 1, 2, 5)
+  - [x] Create `load_models_config(file_path: str = "models.yaml") -> List[Dict]` function
+  - [x] Use `yaml.safe_load()` to parse YAML file
+  - [x] Validate structure: check for `models` key, ensure it's a list
+  - [x] Validate each model: required fields (`id`, `name`, `endpoint`) present
+  - [x] Return list of model dictionaries
+  - [x] Testing: Test with valid models.yaml file
 
-- [ ] Task 4: Implement validate_model_config() function (AC: 2)
-  - [ ] Create `validate_model_config(model: Dict) -> bool` function
-  - [ ] Check required fields: `id` (str), `name` (str), `endpoint` (str)
-  - [ ] Validate endpoint format: contains `/` (basic format check)
-  - [ ] Validate optional fields if present: `trigger_words` (str or list), `default_settings` (dict)
-  - [ ] Return True if valid, raise ValueError with details if invalid
-  - [ ] Testing: Test with valid and invalid model configs
+- [x] Task 4: Implement validate_model_config() function (AC: 2)
+  - [x] Create `validate_model_config(model: Dict) -> bool` function
+  - [x] Check required fields: `id` (str), `name` (str), `endpoint` (str)
+  - [x] Validate endpoint format: contains `/` (basic format check)
+  - [x] Validate optional fields if present: `trigger_words` (str or list), `default_settings` (dict)
+  - [x] Return True if valid, raise ValueError with details if invalid
+  - [x] Testing: Test with valid and invalid model configs
 
-- [ ] Task 5: Implement error handling for missing file (AC: 3)
-  - [ ] Handle FileNotFoundError when models.yaml doesn't exist
-  - [ ] Return empty list or raise descriptive error
-  - [ ] Log warning message appropriately
-  - [ ] Check secrets.toml fallback (for backward compatibility - Story 1.7)
-  - [ ] Testing: Test with missing models.yaml file
+- [x] Task 5: Implement error handling for missing file (AC: 3)
+  - [x] Handle FileNotFoundError when models.yaml doesn't exist
+  - [x] Return empty list or raise descriptive error
+  - [x] Log warning message appropriately
+  - [x] Check secrets.toml fallback (for backward compatibility - Story 1.7)
+  - [x] Testing: Test with missing models.yaml file
 
-- [ ] Task 6: Implement error handling for invalid YAML (AC: 4)
-  - [ ] Handle yaml.YAMLError exceptions
-  - [ ] Provide descriptive error message with line number if available
-  - [ ] Log error appropriately
-  - [ ] Testing: Test with invalid YAML syntax
+- [x] Task 6: Implement error handling for invalid YAML (AC: 4)
+  - [x] Handle yaml.YAMLError exceptions
+  - [x] Provide descriptive error message with line number if available
+  - [x] Log error appropriately
+  - [x] Testing: Test with invalid YAML syntax
 
-- [ ] Task 7: Implement error handling for invalid structure (AC: 4)
-  - [ ] Handle missing `models` key
-  - [ ] Handle `models` not being a list
-  - [ ] Handle missing required fields in model objects
-  - [ ] Provide specific field error messages
-  - [ ] Testing: Test with various invalid structure scenarios
+- [x] Task 7: Implement error handling for invalid structure (AC: 4)
+  - [x] Handle missing `models` key
+  - [x] Handle `models` not being a list
+  - [x] Handle missing required fields in model objects
+  - [x] Provide specific field error messages
+  - [x] Testing: Test with various invalid structure scenarios
 
-- [ ] Task 8: Ensure performance requirement (AC: 6)
-  - [ ] Measure configuration loading time
-  - [ ] Optimize if needed (efficient YAML parsing, minimal validation overhead)
-  - [ ] Verify loading completes in <500ms with 10+ models
-  - [ ] Testing: Performance test with multiple models
+- [x] Task 8: Ensure performance requirement (AC: 6)
+  - [x] Measure configuration loading time
+  - [x] Optimize if needed (efficient YAML parsing, minimal validation overhead)
+  - [x] Verify loading completes in <500ms with 10+ models
+  - [x] Testing: Performance test with multiple models
 
-- [ ] Task 9: Implement logging (AC: 7)
-  - [ ] Log successful configuration load with model count
-  - [ ] Log warnings for missing file or fallback scenarios
-  - [ ] Log errors for invalid YAML or structure
-  - [ ] Use appropriate log levels (info, warning, error)
-  - [ ] Testing: Verify logs appear correctly
+- [x] Task 9: Implement logging (AC: 7)
+  - [x] Log successful configuration load with model count
+  - [x] Log warnings for missing file or fallback scenarios
+  - [x] Log errors for invalid YAML or structure
+  - [x] Use appropriate log levels (info, warning, error)
+  - [x] Testing: Verify logs appear correctly
 
 ## Dev Notes
 
@@ -126,12 +126,13 @@ So that all available models are ready to use when I open the app.
 ## Change Log
 
 - 2026-01-01: Story drafted
+- 2026-01-01: Story implementation completed - All tasks finished, all tests passing, ready for review
 
 ## Dev Agent Record
 
 ### Context Reference
 
-<!-- Path(s) to story context XML will be added here by context workflow -->
+- docs/stories/1-2-load-and-validate-model-configuration.context.xml
 
 ### Agent Model Used
 
@@ -141,4 +142,30 @@ So that all available models are ready to use when I open the app.
 
 ### Completion Notes List
 
+**Implementation Summary:**
+- Created `config/` module at project root with `__init__.py` and `model_loader.py`
+- Installed PyYAML 6.0.3 dependency via `uv sync`
+- Implemented `load_models_config()` function with comprehensive error handling:
+  - Handles missing file with descriptive FileNotFoundError
+  - Handles invalid YAML syntax with line number information
+  - Validates structure (models key, list type, required fields)
+  - Returns List[Dict] structure ready for session state storage
+- Implemented `validate_model_config()` function for individual model validation:
+  - Validates required fields (id, name, endpoint) and types
+  - Validates endpoint format (contains '/')
+  - Validates optional fields (trigger_words, default_settings) if present
+- Performance verified: Loading completes in <500ms with 15+ models (tested)
+- Logging implemented with appropriate levels (info for success, warning for missing file, error for validation failures)
+- Comprehensive test suite created: 19 tests covering all acceptance criteria, all passing
+- All acceptance criteria satisfied and tested
+
 ### File List
+
+**New Files:**
+- `config/__init__.py` - Package initialization
+- `config/model_loader.py` - Model loading and validation functions
+- `tests/test_model_loader.py` - Comprehensive test suite (19 tests)
+
+**Modified Files:**
+- `pyproject.toml` - Added pyyaml>=6.0.1 and pytest>=8.0.0 dependencies
+- `docs/sprint-status.yaml` - Updated story status from ready-for-dev to in-progress, then to review
