@@ -3,7 +3,7 @@ import pytest
 import os
 from unittest.mock import patch, MagicMock
 import streamlit as st
-from streamlit_app import get_secret, get_replicate_api_token, get_replicate_model_endpoint
+from streamlit_app import get_secret, get_replicate_api_token, get_replicate_model_endpoint, _set_session_state
 
 
 class TestGetSecret:
@@ -178,6 +178,74 @@ class TestGetReplicateModelEndpoint:
                 
                 # THEN: Should return default test endpoint
                 assert result == "stability-ai/sdxl:test-version"
+
+
+class TestSetSessionState:
+    """Tests for _set_session_state() helper function."""
+    
+    @pytest.mark.unit
+    def test_set_session_state_with_attribute_access(self):
+        """[P2] Test that _set_session_state works with attribute-style access."""
+        # GIVEN: Mock session state that supports attribute access (MagicMock accepts setattr)
+        mock_session_state = MagicMock()
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_st.session_state = mock_session_state
+            
+            # WHEN: Setting session state value
+            _set_session_state('test_key', 'test_value')
+            
+            # THEN: Should use setattr (MagicMock stores attributes, verify it was set)
+            assert hasattr(mock_session_state, 'test_key')
+            assert getattr(mock_session_state, 'test_key') == 'test_value'
+    
+    @pytest.mark.unit
+    def test_set_session_state_falls_back_to_dict_access(self):
+        """[P2] Test that _set_session_state falls back to dict-style access when attribute access fails."""
+        # GIVEN: Mock session state that doesn't support attribute access (dict-like)
+        # A plain dict will raise AttributeError when trying setattr
+        mock_session_state = {}
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_st.session_state = mock_session_state
+            
+            # WHEN: Setting session state value (attribute access will fail, should fall back to dict)
+            _set_session_state('test_key', 'test_value')
+            
+            # THEN: Value should be set via dict access
+            assert mock_st.session_state['test_key'] == 'test_value'
+    
+    @pytest.mark.unit
+    def test_set_session_state_handles_type_error(self):
+        """[P2] Test that _set_session_state handles TypeError gracefully."""
+        # GIVEN: Mock session state that raises TypeError on setattr
+        class MockSessionStateWithTypeError:
+            """Mock session state that raises TypeError on setattr."""
+            def __init__(self):
+                self._data = {}
+            
+            def __setattr__(self, name, value):
+                if name == '_data':
+                    super().__setattr__(name, value)
+                else:
+                    raise TypeError("Cannot set attribute")
+            
+            def __setitem__(self, key, value):
+                self._data[key] = value
+            
+            def __getitem__(self, key):
+                return self._data[key]
+        
+        mock_session_state = MockSessionStateWithTypeError()
+        
+        with patch('streamlit_app.st') as mock_st:
+            mock_st.session_state = mock_session_state
+            
+            # WHEN: Setting session state value
+            _set_session_state('test_key', 'test_value')
+            
+            # THEN: Should fall back to dict access
+            assert mock_st.session_state['test_key'] == 'test_value'
 
 
 def _raise(exc):

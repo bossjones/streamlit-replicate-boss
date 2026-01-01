@@ -1,0 +1,181 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.3</storyId>
+    <title>Display Model Information in Sidebar</title>
+    <status>drafted</status>
+    <generatedAt>2026-01-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-3-display-model-information-in-sidebar.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>to see information about the selected model</iWant>
+    <soThat>I understand what model I'm using and its trigger words</soThat>
+    <tasks>
+      <task id="1" ac="1,4">Display model name prominently in sidebar</task>
+      <task id="2" ac="2,5">Show model trigger words if available (from model config or preset)</task>
+      <task id="3" ac="3,5">Display model description if provided</task>
+      <task id="4" ac="4">Ensure model info updates immediately on selection change</task>
+      <task id="5" ac="5">Handle edge cases gracefully</task>
+      <task id="6" ac="6">Ensure information is clearly visible but doesn't clutter UI</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Display selected model name prominently in sidebar (below model selector)</criterion>
+    <criterion id="2">Show model trigger words if available (from model config or preset)</criterion>
+    <criterion id="3">Display model description if provided in config</criterion>
+    <criterion id="4">Model info updates immediately when model selection changes</criterion>
+    <criterion id="5">Handle models without trigger words/description gracefully</criterion>
+    <criterion id="6">Information is clearly visible but doesn't clutter the UI</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 2.3: Display Model Information in Sidebar">
+        Story requirements: Display selected model name prominently, show trigger words from model config or preset, display description if provided, update immediately on selection change, handle missing information gracefully, maintain clear UI.
+      </doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Model Switching &amp; State Management">
+        FR009: System must update UI to reflect selected model, displaying model-specific information (trigger words, description) in sidebar. NFR001: Model switching must complete in less than 1 second.
+      </doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="User Interface Design Goals">
+        Information Architecture: Model Selection Section (Top Priority - Always Visible) - Model selector dropdown, Model information display (trigger words, description) - visible when model selected. Visual Hierarchy: Model name should be most prominent (subheader level). Trigger words should be clearly visible but secondary (info box or formatted text).
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="UI Layer (Sidebar)">
+        Model selector dropdown (top of sidebar), Model information display (trigger words, description), Preset selector (if multiple presets per model - future enhancement), Existing prompt and settings controls (preserved).
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="State Management Layer (Session State)">
+        st.session_state.selected_model - Current model object, st.session_state.model_configs - All loaded models, st.session_state.presets - All loaded presets (Epic 2).
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Model Configuration Structure">
+        Models from models.yaml have structure: id, name, endpoint, trigger_words (optional, string or array), default_settings (optional). Check for trigger_words field in selected_model dict.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Preset System (Epic 2)">
+        Presets have structure: id, name, model_id, trigger_words (optional, string or array), settings (optional). To get trigger words from preset, find matching preset by model_id, then access preset.get('trigger_words').
+      </doc>
+      <doc path="docs/stories/2-2-load-and-store-preset-configurations.md" title="Story 2.2: Load and Store Preset Configurations" section="Learnings from Previous Story">
+        Preset Storage Structure: Presets are stored in st.session_state.presets as dict grouped by model_id: {model_id: [preset1, preset2, ...]}. To find presets for a model, use st.session_state.presets.get(model_id, []) and access the first preset (default) or search by preset name.
+      </doc>
+      <doc path="docs/stories/1-4-create-model-selector-ui-component.md" title="Story 1.4: Create Model Selector UI Component" section="Tasks / Subtasks">
+        Model selector implementation reference: Added model selector st.selectbox() at top of sidebar, before prompt input. Uses st.session_state.model_configs to populate options. Updates st.session_state.selected_model when selection changes.
+      </doc>
+    </docs>
+    <code>
+      <artifact path="streamlit_app.py" kind="main application" symbol="configure_sidebar()" lines="374-460" reason="Function where model info section must be added. Model selector is at lines 412-458, form starts at line 460. Add model info section between these two sections.">
+        <snippet>def configure_sidebar() -> None:
+    """
+    Setup and display the sidebar elements.
+    
+    This function configures the sidebar of the Streamlit application, 
+    including the form for user inputs and the resources section.
+    """
+    with st.sidebar:
+        # Model selector - placed at top of sidebar before form
+        model_configs = st.session_state.get('model_configs', [])
+        selected_model = st.session_state.get('selected_model', None)
+        
+        # ... model selector logic at lines 412-458 ...
+        
+        # Update selected model
+        _set_session_state('selected_model', new_selected_model)
+    
+    with st.form("my_form"):
+        # Form starts here at line 460</snippet>
+      </artifact>
+      <artifact path="streamlit_app.py" kind="main application" symbol="st.session_state" lines="383-384" reason="Session state access patterns for model_configs and selected_model. Use st.session_state.get() for safe access.">
+        <snippet>model_configs = st.session_state.get('model_configs', [])
+selected_model = st.session_state.get('selected_model', None)</snippet>
+      </artifact>
+      <artifact path="utils/preset_manager.py" kind="module" symbol="load_presets_config()" lines="10-136" reason="Function to load presets. Presets are stored as {model_id: [preset1, preset2, ...]}. Use st.session_state.presets.get(model_id, []) to find presets for selected model.">
+        <snippet>def load_presets_config(file_path: str = "presets.yaml", validate_model_ids: bool = True) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Load and parse presets.yaml configuration file.
+    
+    Returns:
+        Dictionary grouped by model_id: {model_id: [preset1, preset2, ...]}.
+        Returns empty dict {} if file is missing (graceful degradation).
+    """</snippet>
+      </artifact>
+      <artifact path="models.yaml" kind="configuration file" symbol="model structure" lines="1-49" reason="Model configuration structure. Models have: id, name, endpoint, trigger_words (optional, string or array), default_settings (optional). Check selected_model.get('trigger_words') for trigger words.">
+        <snippet>models:
+  - id: "sdxl"
+    name: "Stability AI SDXL"
+    endpoint: "stability-ai/sdxl:..."
+    trigger_words: []  # Optional
+  - id: "helldiver"
+    name: "Helldiver Tactical Armor"
+    endpoint: "iamprofessorex/helldiver-b01-tactical-armor:..."
+    trigger_words: ["HELLDIVERB01TACTICALARMOR"]  # Optional</snippet>
+      </artifact>
+      <artifact path="presets.yaml" kind="configuration file" symbol="preset structure" lines="1-67" reason="Preset configuration structure. Presets have: id, name, model_id, trigger_words (optional, string or array), settings (optional). To find preset for model, use st.session_state.presets.get(model_id, []) then access preset.get('trigger_words').">
+        <snippet>presets:
+  - id: "helldiver-default"
+    name: "Helldiver Default"
+    model_id: "helldiver"
+    trigger_words: ["HELLDIVERB01TACTICALARMOR"]  # Optional
+    settings: {...}</snippet>
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="python">
+        <package name="streamlit" version=">=1.50.0" reason="UI framework. Use st.subheader(), st.markdown(), st.info(), st.caption(), st.divider() for model info display."/>
+        <package name="pyyaml" version=">=6.0.1" reason="YAML parsing for models.yaml and presets.yaml (already loaded)."/>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Sidebar Structure: Model selector is at top of sidebar (lines 412-458). Form starts at line 460. Model info section must be placed between these two sections, creating clear visual hierarchy: Selector → Info → Form.</constraint>
+    <constraint>Streamlit Reactive Framework: Streamlit automatically re-renders components when session state changes. Model info section will update automatically when st.session_state.selected_model changes - no manual refresh needed.</constraint>
+    <constraint>UI Components: Use Streamlit's native components for consistent styling: st.subheader() or st.markdown("### Model Name") for model name (prominent), st.info() or st.markdown() for trigger words (informational), st.caption() or st.markdown() with small text for description (subtle), st.divider() for visual separation between sections.</constraint>
+    <constraint>Visual Hierarchy: Model name should be most prominent (subheader level). Trigger words should be clearly visible but secondary (info box or formatted text). Description should be subtle (caption or small text).</constraint>
+    <constraint>Performance Requirement: Model info updates must be immediate (&lt;1 second, NFR001). Streamlit's reactive framework handles this automatically - no optimization needed.</constraint>
+    <constraint>Error Handling: Follow graceful degradation pattern - if presets are missing or model has no presets, app should continue to work normally. Never crash due to missing presets or missing model fields.</constraint>
+    <constraint>Session State Access: Use st.session_state.get('presets', {}) to safely access presets. Use st.session_state.get('selected_model', None) to safely access selected model. Always check for None before accessing model fields.</constraint>
+    <constraint>Trigger Words Source Priority: Check for trigger words in selected_model config (from models.yaml) first. If not in model config, check for trigger words in matching preset from st.session_state.presets. Handle empty array or missing gracefully (don't show section).</constraint>
+    <constraint>File Location: Modify streamlit_app.py in project root. Add model info section in configure_sidebar() function after model selector logic (after line 458, before form at line 460).</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="Streamlit Session State" kind="state management" signature="st.session_state.get(key, default)" path="streamlit_app.py">
+      <description>Access session state safely: st.session_state.get('selected_model', None), st.session_state.get('presets', {}), st.session_state.get('model_configs', [])</description>
+    </interface>
+    <interface name="Model Configuration" kind="data structure" signature="selected_model: Dict[str, Any]" path="models.yaml">
+      <description>Model dict structure: {'id': str, 'name': str, 'endpoint': str, 'trigger_words': Optional[Union[str, List[str]]], 'default_settings': Optional[Dict], 'description': Optional[str]}</description>
+    </interface>
+    <interface name="Preset Configuration" kind="data structure" signature="presets: Dict[str, List[Dict[str, Any]]]" path="utils/preset_manager.py">
+      <description>Presets dict structure: {model_id: [preset1, preset2, ...]}. Each preset: {'id': str, 'name': str, 'model_id': str, 'trigger_words': Optional[Union[str, List[str]]], 'settings': Optional[Dict]}</description>
+    </interface>
+    <interface name="Streamlit UI Components" kind="UI components" signature="st.subheader(), st.markdown(), st.info(), st.caption(), st.divider()" path="streamlit">
+      <description>Streamlit components for displaying model information: st.subheader() for model name, st.info() for trigger words, st.caption() for description, st.divider() for visual separation</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use Streamlit's AppTest framework (included with Streamlit 1.50.0+) for integration tests. Test UI components, session state interactions, and reactive updates. Use pytest for test organization. Test both positive scenarios (model info displays correctly) and negative scenarios (missing data handled gracefully). Verify immediate updates when model selection changes.
+    </standards>
+    <locations>
+      <location>tests/integration/test_streamlit_app.py</location>
+      <location>tests/unit/</location>
+    </locations>
+    <ideas>
+      <test ac="1">Test model name displays below selector when selected_model exists</test>
+      <test ac="1">Test model name updates immediately when model selection changes</test>
+      <test ac="2">Test trigger words display from model config when available</test>
+      <test ac="2">Test trigger words display from preset when model config doesn't have them</test>
+      <test ac="2">Test no trigger words section when neither source has them</test>
+      <test ac="3">Test description displays when present in model config</test>
+      <test ac="3">Test no description section when missing</test>
+      <test ac="4">Test info updates instantly when model selector changes</test>
+      <test ac="4">Test no UI flicker or delay during updates</test>
+      <test ac="5">Test graceful handling when selected_model is None</test>
+      <test ac="5">Test graceful handling when trigger words missing</test>
+      <test ac="5">Test graceful handling when description missing</test>
+      <test ac="6">Test info section is visually clear and organized</test>
+      <test ac="6">Test sidebar layout remains clean and usable</test>
+    </ideas>
+  </tests>
+</story-context>
