@@ -40,7 +40,7 @@ workflow_status:
   # Phase 2: Planning
   prd: docs/PRD.md
   validate-prd: optional
-  tech-spec: required
+  tech-spec: docs/tech-spec.md
   create-design: conditional
 
   # Phase 3: Solutioning

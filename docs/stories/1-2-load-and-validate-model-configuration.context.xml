@@ -1,0 +1,214 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.2</storyId>
+    <title>Load and Validate Model Configuration</title>
+    <status>drafted</status>
+    <generatedAt>2026-01-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-2-load-and-validate-model-configuration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>the application to load model configurations at startup</iWant>
+    <soThat>all available models are ready to use when I open the app</soThat>
+    <tasks>
+- [ ] Task 1: Create config module structure (AC: 1)
+  - [ ] Create `config/` directory at project root
+  - [ ] Create `config/__init__.py` to make it a Python package
+  - [ ] Create `config/model_loader.py` module file
+  - [ ] Testing: Verify module can be imported
+
+- [ ] Task 2: Install PyYAML dependency (AC: 1, 2)
+  - [ ] Add `pyyaml>=6.0.1` to `pyproject.toml` dependencies
+  - [ ] Run `uv sync` to install dependency
+  - [ ] Verify PyYAML can be imported in Python
+  - [ ] Testing: Import yaml module successfully
+
+- [ ] Task 3: Implement load_models_config() function (AC: 1, 2, 5)
+  - [ ] Create `load_models_config(file_path: str = "models.yaml") -> List[Dict]` function
+  - [ ] Use `yaml.safe_load()` to parse YAML file
+  - [ ] Validate structure: check for `models` key, ensure it's a list
+  - [ ] Validate each model: required fields (`id`, `name`, `endpoint`) present
+  - [ ] Return list of model dictionaries
+  - [ ] Testing: Test with valid models.yaml file
+
+- [ ] Task 4: Implement validate_model_config() function (AC: 2)
+  - [ ] Create `validate_model_config(model: Dict) -> bool` function
+  - [ ] Check required fields: `id` (str), `name` (str), `endpoint` (str)
+  - [ ] Validate endpoint format: contains `/` (basic format check)
+  - [ ] Validate optional fields if present: `trigger_words` (str or list), `default_settings` (dict)
+  - [ ] Return True if valid, raise ValueError with details if invalid
+  - [ ] Testing: Test with valid and invalid model configs
+
+- [ ] Task 5: Implement error handling for missing file (AC: 3)
+  - [ ] Handle FileNotFoundError when models.yaml doesn't exist
+  - [ ] Return empty list or raise descriptive error
+  - [ ] Log warning message appropriately
+  - [ ] Check secrets.toml fallback (for backward compatibility - Story 1.7)
+  - [ ] Testing: Test with missing models.yaml file
+
+- [ ] Task 6: Implement error handling for invalid YAML (AC: 4)
+  - [ ] Handle yaml.YAMLError exceptions
+  - [ ] Provide descriptive error message with line number if available
+  - [ ] Log error appropriately
+  - [ ] Testing: Test with invalid YAML syntax
+
+- [ ] Task 7: Implement error handling for invalid structure (AC: 4)
+  - [ ] Handle missing `models` key
+  - [ ] Handle `models` not being a list
+  - [ ] Handle missing required fields in model objects
+  - [ ] Provide specific field error messages
+  - [ ] Testing: Test with various invalid structure scenarios
+
+- [ ] Task 8: Ensure performance requirement (AC: 6)
+  - [ ] Measure configuration loading time
+  - [ ] Optimize if needed (efficient YAML parsing, minimal validation overhead)
+  - [ ] Verify loading completes in &lt;500ms with 10+ models
+  - [ ] Testing: Performance test with multiple models
+
+- [ ] Task 9: Implement logging (AC: 7)
+  - [ ] Log successful configuration load with model count
+  - [ ] Log warnings for missing file or fallback scenarios
+  - [ ] Log errors for invalid YAML or structure
+  - [ ] Use appropriate log levels (info, warning, error)
+  - [ ] Testing: Verify logs appear correctly
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. Create function to load `models.yaml` file at application startup
+2. Parse YAML and validate structure (required fields present, valid types)
+3. Handle missing file gracefully with clear error message
+4. Handle invalid YAML/format with descriptive error messages
+5. Store loaded models in memory (list/dict structure)
+6. Configuration loading completes in &lt;500ms (NFR002)
+7. Log successful load or errors appropriately
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Model Management &amp; Configuration">
+        Defines functional requirements FR002 (file-based config), FR005 (validation), and non-functional requirement NFR002 (config loading &lt;500ms). Specifies YAML format for configuration storage.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Model Configuration Loading (Story 1.2)">
+        Detailed implementation guide for `load_models_config()` and `validate_model_config()` functions. Specifies use of `yaml.safe_load()`, error handling patterns, and performance requirements.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Source Tree Structure">
+        Defines new module structure: `config/` directory at project root with `__init__.py` and `model_loader.py`. Specifies file location and module organization.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="New Dependencies to Add">
+        Specifies adding `pyyaml>=6.0.1` to `pyproject.toml` dependencies using `uv add pyyaml>=6.0.1`.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Error Handling (Story 1.7)">
+        Error handling strategy: missing file should check secrets.toml fallback, invalid YAML should provide line numbers, graceful degradation patterns.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Session-State-Structure">
+        Future session state structure: `st.session_state.model_configs` will store loaded models as list of dictionaries. This story should return structure ready for session state storage.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Backward-Compatibility-Strategy">
+        Backward compatibility approach: check `REPLICATE_MODEL_ENDPOINTSTABILITY` in secrets.toml if models.yaml is missing. Full implementation deferred to Story 1.7, but basic check should be considered.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Documentation" section="Data Architecture">
+        Current architecture uses Streamlit session state for client-side data persistence. Model configurations will be stored in session state after loading.
+      </doc>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 1.2">
+        Story definition with acceptance criteria and prerequisites. Story 1.1 must be complete (models.yaml file exists).
+      </doc>
+      <doc path="docs/stories/1-1-create-model-configuration-file-structure.md" title="Story 1.1" section="File List">
+        Previous story created `models.yaml` at project root with complete schema documentation. File contains 4 models (sdxl, helldiver, starship-trooper, firebeardjones) with required fields.
+      </doc>
+      <doc path="docs/stories/1-2-load-and-validate-model-configuration.md" title="Story 1.2" section="Dev Notes">
+        Architecture patterns: use `yaml.safe_load()` for secure parsing, create `config/` module at project root, handle errors gracefully, performance requirement &lt;500ms.
+      </doc>
+    </docs>
+    <code>
+      <artifact path="models.yaml" kind="configuration" symbol="models" lines="1-49" reason="Source file to be loaded and parsed. Contains 4 model definitions with schema: id, name, endpoint, optional trigger_words and default_settings."/>
+      <artifact path="validate_models_yaml.py" kind="script" symbol="validate_models_yaml" lines="1-99" reason="Reference validation script that demonstrates YAML parsing with yaml.safe_load(), structure validation, and error handling patterns. Can reference validation logic but PyYAML must be installed first."/>
+      <artifact path="streamlit_app.py" kind="application" symbol="main" lines="203-217" reason="Main application entry point. Configuration loading should be called at startup, before UI rendering. Session state initialization will happen in Story 1.3."/>
+      <artifact path="streamlit_app.py" kind="application" symbol="configure_sidebar" lines="30-88" reason="Sidebar configuration function. Model selector will be added here in Story 1.4, but config must be loaded first."/>
+      <artifact path="pyproject.toml" kind="configuration" symbol="dependencies" lines="7-13" reason="Dependency management file. PyYAML must be added to dependencies list. Currently includes replicate, requests, streamlit, streamlit-image-select, watchdog."/>
+      <artifact path="utils/__init__.py" kind="module" symbol="utils" reason="Existing utils module structure. Config module should follow similar pattern at project root level, not inside utils."/>
+    </code>
+    <dependencies>
+      <ecosystem name="python">
+        <package name="pyyaml" version=">=6.0.1" purpose="YAML parsing for models.yaml configuration file"/>
+        <package name="streamlit" version=">=1.50.0" purpose="Web framework, includes session state management"/>
+        <package name="replicate" version=">=1.0.7" purpose="API client for model inference (used in main app, not directly in this story)"/>
+        <package name="requests" version=">=2.32.5" purpose="HTTP requests (used in main app, not directly in this story)"/>
+      </ecosystem>
+      <ecosystem name="package-manager">
+        <package name="uv" purpose="Dependency management tool. Use `uv add pyyaml>=6.0.1` to install PyYAML."/>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">
+      Create `config/` directory at project root (`{project-root}/config/`), not in `utils/` or elsewhere. Follows tech spec structure.
+    </constraint>
+    <constraint type="security">
+      Use `yaml.safe_load()` from PyYAML library for secure YAML parsing. This prevents arbitrary code execution that `yaml.load()` could allow.
+    </constraint>
+    <constraint type="performance">
+      Configuration loading must complete in &lt;500ms (NFR002). Use efficient YAML parsing and minimal validation overhead.
+    </constraint>
+    <constraint type="error-handling">
+      Handle errors gracefully with clear messages. Missing file should check secrets.toml fallback (for backward compatibility, though full implementation is in Story 1.7). Invalid YAML should provide line numbers if available.
+    </constraint>
+    <constraint type="data-structure">
+      Return list/dict structure ready for session state storage. While not implemented in this story, loaded models will be stored in `st.session_state.model_configs` in Story 1.3.
+    </constraint>
+    <constraint type="file-location">
+      Default path for `models.yaml` should be project root (`models.yaml` or `{project-root}/models.yaml`). Function should accept file_path parameter for flexibility and testing.
+    </constraint>
+    <constraint type="dependency-management">
+      Add PyYAML to `pyproject.toml` using `uv add pyyaml>=6.0.1`. This ensures proper dependency management with uv package manager.
+    </constraint>
+    <constraint type="backward-compatibility">
+      Consider checking `REPLICATE_MODEL_ENDPOINTSTABILITY` in secrets.toml if models.yaml is missing, though full backward compatibility implementation is deferred to Story 1.7.
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="load_models_config" kind="function" signature="load_models_config(file_path: str = 'models.yaml') -> List[Dict]" path="config/model_loader.py">
+      Main function to load and parse models.yaml file. Returns list of model dictionaries. Handles file loading, YAML parsing, structure validation, and error handling.
+    </interface>
+    <interface name="validate_model_config" kind="function" signature="validate_model_config(model: Dict) -> bool" path="config/model_loader.py">
+      Validates individual model configuration dictionary. Checks required fields (id, name, endpoint), validates types, and optional fields. Returns True if valid, raises ValueError with details if invalid.
+    </interface>
+    <interface name="yaml.safe_load" kind="library-function" signature="yaml.safe_load(stream) -> Any" path="yaml">
+      PyYAML library function for secure YAML parsing. Use this instead of yaml.load() to prevent arbitrary code execution.
+    </interface>
+    <interface name="st.session_state" kind="session-state" signature="st.session_state.model_configs: List[Dict]" path="streamlit">
+      Future session state structure (Story 1.3). This story should return data structure compatible with: `st.session_state.model_configs = load_models_config()`.
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use pytest 8.0.0+ for unit testing. Test files should be in `tests/` directory. Use Streamlit's AppTest framework (included with Streamlit 1.50.0+) for integration tests. Test configuration loading, validation, error handling, and performance requirements. Reference `validate_models_yaml.py` for validation patterns, but create proper unit tests in `tests/test_model_loader.py`.
+    </standards>
+    <locations>
+      <location>tests/</location>
+      <location>tests/test_model_loader.py</location>
+      <location>tests/fixtures/models.yaml</location>
+    </locations>
+    <ideas>
+      <test ac="AC1">Test load_models_config() with valid models.yaml file - verify correct parsing and structure</test>
+      <test ac="AC2">Test validate_model_config() with valid model dict - verify all required fields pass</test>
+      <test ac="AC2">Test validate_model_config() with missing required fields - verify ValueError raised with specific field names</test>
+      <test ac="AC2">Test validate_model_config() with invalid endpoint format - verify validation catches missing '/' character</test>
+      <test ac="AC3">Test load_models_config() with missing file - verify graceful handling, returns empty list or raises descriptive error</test>
+      <test ac="AC4">Test load_models_config() with invalid YAML syntax - verify yaml.YAMLError caught and descriptive error message provided</test>
+      <test ac="AC4">Test load_models_config() with missing 'models' key - verify specific error message about missing key</test>
+      <test ac="AC4">Test load_models_config() with 'models' not being a list - verify error message about incorrect type</test>
+      <test ac="AC5">Test load_models_config() return value - verify returns List[Dict] structure ready for session state</test>
+      <test ac="AC6">Test performance requirement - verify loading completes in &lt;500ms with 10+ models (use time measurement)</test>
+      <test ac="AC7">Test logging - verify successful load logs info message with model count, errors log error level, warnings log warning level</test>
+      <test integration="true">Test module import - verify config.model_loader can be imported after creation</test>
+      <test integration="true">Test PyYAML installation - verify yaml module can be imported after dependency installation</test>
+    </ideas>
+  </tests>
+</story-context>
