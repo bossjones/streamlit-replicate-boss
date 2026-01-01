@@ -1,0 +1,194 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>1.3</storyId>
+    <title>Initialize Session State for Model Management</title>
+    <status>drafted</status>
+    <generatedAt>2026-01-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-3-initialize-session-state-for-model-management.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>my model selection to persist during my session</iWant>
+    <soThat>I don't lose my selection when interacting with the app</soThat>
+    <tasks>
+- [ ] Task 1: Create session state initialization function (AC: 1, 2, 3)
+  - [ ] Create `initialize_session_state()` function in `streamlit_app.py`
+  - [ ] Call `load_models_config()` from `config.model_loader` to get models
+  - [ ] Initialize `st.session_state.model_configs` with loaded models list
+  - [ ] Set default model: first model from config or explicitly designated default
+  - [ ] Initialize `st.session_state.selected_model` with default model object
+  - [ ] Testing: Verify session state initialized on first app load
+
+- [ ] Task 2: Implement default model selection logic (AC: 2)
+  - [ ] Check if any model has explicit `default: true` flag in config
+  - [ ] If default flag found, use that model
+  - [ ] Else, use first model in models list as default
+  - [ ] Handle case where models list is empty (no default possible)
+  - [ ] Testing: Test default selection with explicit default flag
+  - [ ] Testing: Test default selection without explicit flag (first model)
+
+- [ ] Task 3: Ensure session state persistence (AC: 4)
+  - [ ] Verify session state persists across form submissions
+  - [ ] Verify session state persists across page interactions
+  - [ ] Verify session state persists when switching between sidebar and main area
+  - [ ] Use Streamlit's built-in session state (no additional persistence needed)
+  - [ ] Testing: Verify state persists after form submission
+  - [ ] Testing: Verify state persists after multiple interactions
+
+- [ ] Task 4: Handle edge cases for initialization (AC: 5)
+  - [ ] Handle missing models.yaml: Check if `load_models_config()` returns empty list
+  - [ ] Handle empty models list: Show warning, disable model selector (for Story 1.4)
+  - [ ] Handle invalid model config: Use error handling from Story 1.2
+  - [ ] Handle missing required fields in default model: Fallback to first valid model
+  - [ ] Testing: Test initialization with missing models.yaml
+  - [ ] Testing: Test initialization with empty models list
+  - [ ] Testing: Test initialization with invalid model config
+
+- [ ] Task 5: Integrate initialization into app startup (AC: 1, 2, 3)
+  - [ ] Call `initialize_session_state()` in `main()` function before UI rendering
+  - [ ] Ensure initialization happens only once per session (check if already initialized)
+  - [ ] Place initialization before `configure_sidebar()` call
+  - [ ] Testing: Verify initialization runs on app startup
+  - [ ] Testing: Verify initialization doesn't run multiple times per session
+
+- [ ] Task 6: Add logging for session state initialization (AC: 1, 2, 3)
+  - [ ] Log successful initialization with model count
+  - [ ] Log default model selection
+  - [ ] Log warnings for edge cases (missing config, empty models)
+  - [ ] Use appropriate log levels (info for success, warning for issues)
+  - [ ] Testing: Verify logs appear correctly
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. Initialize `st.session_state.selected_model` on first app load
+2. Set default model (first model from config or explicitly designated)
+3. Initialize `st.session_state.model_configs` with loaded model data
+4. Session state persists across page interactions (form submissions, etc.)
+5. Handle session state initialization edge cases (missing config, empty models)
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Model Switching &amp; State Management">
+        Defines functional requirement FR003 (session state persistence) and FR004 (default model selection). Specifies that model selection should persist across page interactions.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Session State Structure">
+        Defines exact structure for `st.session_state.model_configs` (list of model dictionaries) and `st.session_state.selected_model` (single model dictionary). Specifies default model selection logic: check for explicit `default: true` flag first, else use first model in list.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Implementation Guide">
+        Specifies initialization location: place session state initialization in `main()` function before UI rendering, specifically before `configure_sidebar()` call. Ensures models are loaded before UI components that depend on them.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Model Configuration Loading (Story 1.2)">
+        Documents `load_models_config()` function from `config.model_loader` module. Returns `List[Dict]` structure ready for session state storage. Handles missing file, invalid YAML, and invalid structure with appropriate error handling.
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Error Handling (Story 1.7)">
+        Error handling strategy: if `load_models_config()` returns empty list (missing file or no models), initialize session state with empty structures and show warning. Don't crash application.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Documentation" section="State Management">
+        Documents Streamlit's built-in session state management. Session state automatically persists across page interactions and form submissions within the same session. No additional persistence logic needed.
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Documentation" section="Data Architecture">
+        Current architecture uses Streamlit session state for client-side data persistence. This story extends state management to include model configurations and selected model.
+      </doc>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 1.3">
+        Story definition with acceptance criteria and prerequisites. Story 1.2 must be complete (model configuration loading implemented).
+      </doc>
+      <doc path="docs/stories/1-2-load-and-validate-model-configuration.md" title="Story 1.2" section="File List">
+        Previous story created `config/model_loader.py` with `load_models_config()` and `validate_model_config()` functions. Module structure: `config/` directory at project root with `__init__.py` and `model_loader.py`.
+      </doc>
+      <doc path="docs/stories/1-2-load-and-validate-model-configuration.md" title="Story 1.2" section="Completion Notes List">
+        Implementation details: `load_models_config()` returns `List[Dict]` structure ready for session state storage. Each dict contains model config with `id`, `name`, `endpoint`, optional `trigger_words`, optional `default_settings`. Function handles missing file gracefully (returns empty list), invalid YAML (raises with line numbers), invalid structure (raises with field errors).
+      </doc>
+      <doc path="docs/stories/1-3-initialize-session-state-for-model-management.md" title="Story 1.3" section="Dev Notes">
+        Architecture patterns: initialize session state in `main()` function before UI rendering, check for explicit `default: true` flag first, use Streamlit's built-in session state persistence, handle edge cases gracefully.
+      </doc>
+    </docs>
+    <code>
+      <artifact path="streamlit_app.py" kind="application" symbol="main" lines="203-217" reason="Main application entry point. Must call `initialize_session_state()` before `configure_sidebar()` to ensure models are loaded before UI components that depend on them."/>
+      <artifact path="streamlit_app.py" kind="application" symbol="configure_sidebar" lines="30-88" reason="Sidebar configuration function. Model selector will be added here in Story 1.4, but session state must be initialized first so models are available."/>
+      <artifact path="config/model_loader.py" kind="module" symbol="load_models_config" lines="10-105" reason="Function to load and parse models.yaml file. Returns List[Dict] structure ready for session state storage. Must be called during initialization to populate `st.session_state.model_configs`."/>
+      <artifact path="config/model_loader.py" kind="module" symbol="validate_model_config" lines="108-157" reason="Function to validate individual model configuration. Can be used to ensure default model has valid structure before setting it as selected_model."/>
+      <artifact path="config/__init__.py" kind="module" symbol="config" reason="Package initialization file. Import using `from config.model_loader import load_models_config`."/>
+      <artifact path="models.yaml" kind="configuration" symbol="models" lines="23-49" reason="Model configuration file. Contains 4 model definitions. Check for explicit `default: true` flag in model configs for default selection logic."/>
+      <artifact path="tests/test_model_loader.py" kind="test" symbol="TestLoadModelsConfig" lines="39-298" reason="Test suite for model loading. Reference testing patterns for session state initialization tests. Use pytest 8.0.0+ and Streamlit AppTest framework for integration tests."/>
+    </code>
+    <dependencies>
+      <ecosystem name="python">
+        <package name="streamlit" version=">=1.50.0" purpose="Web framework with built-in session state management. Session state automatically persists across page interactions."/>
+        <package name="pyyaml" version=">=6.0.1" purpose="YAML parsing (already installed from Story 1.2, used by load_models_config())"/>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">
+      Place session state initialization in `main()` function before UI rendering, specifically before `configure_sidebar()` call. This ensures models are loaded before UI components that depend on them.
+    </constraint>
+    <constraint type="data-structure">
+      Initialize `st.session_state.model_configs` as list of model dictionaries, `st.session_state.selected_model` as single model dictionary matching structure from `load_models_config()`. Structure defined in tech spec.
+    </constraint>
+    <constraint type="default-selection">
+      Check for explicit `default: true` flag in model config first, else use first model in list. Handle empty models list gracefully.
+    </constraint>
+    <constraint type="state-persistence">
+      Streamlit's session state automatically persists across page interactions and form submissions within the same session. No additional persistence logic needed.
+    </constraint>
+    <constraint type="error-handling">
+      If `load_models_config()` returns empty list (missing file or no models), initialize session state with empty structures and show warning. Don't crash application.
+    </constraint>
+    <constraint type="initialization-timing">
+      Call `initialize_session_state()` in `main()` function before any UI rendering. Check if already initialized to avoid re-initialization on reruns.
+    </constraint>
+    <constraint type="function-location">
+      Create `initialize_session_state()` function in `streamlit_app.py` main file, not in separate module. This keeps session state initialization close to where it's used.
+    </constraint>
+    <constraint type="integration">
+      Use `load_models_config()` function from `config.model_loader` module. Handle its return value (List[Dict]) and any exceptions it may raise.
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="load_models_config" kind="function" signature="load_models_config(file_path: str = 'models.yaml') -> List[Dict[str, Any]]" path="config/model_loader.py">
+      Function to load and parse models.yaml file. Returns list of model dictionaries ready for session state storage. Handles missing file, invalid YAML, and invalid structure. Must be called during initialization to populate `st.session_state.model_configs`.
+    </interface>
+    <interface name="st.session_state.model_configs" kind="session-state" signature="st.session_state.model_configs: List[Dict[str, Any]]" path="streamlit_app.py">
+      Session state variable to store all loaded model configurations. Initialize with result from `load_models_config()`. Structure: list of dictionaries, each containing `id`, `name`, `endpoint`, optional `trigger_words`, optional `default_settings`.
+    </interface>
+    <interface name="st.session_state.selected_model" kind="session-state" signature="st.session_state.selected_model: Dict[str, Any]" path="streamlit_app.py">
+      Session state variable to store currently selected model. Initialize with default model (first model or model with `default: true` flag). Structure: single dictionary matching model structure from `load_models_config()`.
+    </interface>
+    <interface name="st.session_state" kind="session-state" signature="st.session_state" path="streamlit">
+      Streamlit's built-in session state object. Automatically persists across page interactions and form submissions within the same session. Access using `st.session_state.key_name`. Check if key exists using `if 'key_name' not in st.session_state:` to avoid re-initialization.
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Use pytest 8.0.0+ for unit testing. Test files should be in `tests/` directory. Use Streamlit's AppTest framework (included with Streamlit 1.50.0+) for integration tests that verify session state initialization and persistence. Test configuration loading integration, default model selection, edge cases, and state persistence. Reference `tests/test_model_loader.py` for testing patterns.
+    </standards>
+    <locations>
+      <location>tests/</location>
+      <location>tests/test_model_loader.py</location>
+      <location>tests/integration/</location>
+    </locations>
+    <ideas>
+      <test ac="AC1">Test `initialize_session_state()` initializes `st.session_state.selected_model` on first app load - verify key exists and contains model dictionary</test>
+      <test ac="AC2">Test default model selection with explicit `default: true` flag - verify model with flag is selected as default</test>
+      <test ac="AC2">Test default model selection without explicit flag - verify first model in list is selected as default</test>
+      <test ac="AC2">Test default model selection with empty models list - verify graceful handling (no crash)</test>
+      <test ac="AC3">Test `initialize_session_state()` initializes `st.session_state.model_configs` with loaded model data - verify list structure matches `load_models_config()` return value</test>
+      <test ac="AC4">Test session state persists across form submissions - verify `selected_model` and `model_configs` remain unchanged after form submission</test>
+      <test ac="AC4">Test session state persists across page interactions - verify state remains after multiple UI interactions</test>
+      <test ac="AC5">Test initialization with missing models.yaml - verify `load_models_config()` returns empty list, session state initialized with empty structures, warning logged</test>
+      <test ac="AC5">Test initialization with empty models list - verify session state initialized with empty structures, warning logged, no default model set</test>
+      <test ac="AC5">Test initialization with invalid model config - verify error handling from Story 1.2 is used, graceful failure</test>
+      <test integration="true">Test initialization runs on app startup - use Streamlit AppTest to verify `initialize_session_state()` is called in `main()` before `configure_sidebar()`</test>
+      <test integration="true">Test initialization doesn't run multiple times per session - verify check for existing state prevents re-initialization on reruns</test>
+      <test integration="true">Test logging - verify successful initialization logs info message with model count, default model selection logged, warnings logged for edge cases</test>
+    </ideas>
+  </tests>
+</story-context>

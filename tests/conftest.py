@@ -3,18 +3,51 @@ import pytest
 import tempfile
 import os
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 import streamlit as st
 
 
-@pytest.fixture(scope="function")
+def pytest_configure(config):
+    """Configure pytest hooks - runs before test collection."""
+    # Set up st.secrets early to avoid import-time errors
+    if not hasattr(st, 'secrets') or st.secrets is None:
+        mock_secrets_dict = {
+            "REPLICATE_API_TOKEN": "test-token-12345",
+            "REPLICATE_MODEL_ENDPOINTSTABILITY": "stability-ai/sdxl:test-version"
+        }
+        
+        # Create a mock secrets object that supports both dict access and .get()
+        mock_secrets = MagicMock()
+        mock_secrets.__getitem__ = lambda self, key: mock_secrets_dict[key]
+        mock_secrets.get = lambda key, default=None: mock_secrets_dict.get(key, default)
+        mock_secrets.__contains__ = lambda self, key: key in mock_secrets_dict
+        mock_secrets.__bool__ = lambda self: True
+        
+        st.secrets = mock_secrets
+
+
+@pytest.fixture(scope="function", autouse=True)
 def mock_streamlit_secrets():
-    """Mock Streamlit secrets for testing."""
-    mock_secrets = {
+    """Mock Streamlit secrets for testing.
+    
+    This fixture is autouse=True to ensure st.secrets is always available
+    before any module imports that might access it.
+    """
+    mock_secrets_dict = {
         "REPLICATE_API_TOKEN": "test-token-12345",
         "REPLICATE_MODEL_ENDPOINTSTABILITY": "stability-ai/sdxl:test-version"
     }
-    return mock_secrets
+    
+    # Create a mock secrets object that supports both dict access and .get()
+    mock_secrets = MagicMock()
+    mock_secrets.__getitem__ = lambda self, key: mock_secrets_dict[key]
+    mock_secrets.get = lambda key, default=None: mock_secrets_dict.get(key, default)
+    mock_secrets.__contains__ = lambda self, key: key in mock_secrets_dict
+    mock_secrets.__bool__ = lambda self: True
+    
+    # Patch st.secrets to use our mock
+    with patch.object(st, 'secrets', mock_secrets, create=True):
+        yield mock_secrets
 
 
 @pytest.fixture(scope="function")
@@ -65,3 +98,49 @@ def reset_streamlit_state():
     yield
     if hasattr(st, 'session_state'):
         st.session_state.clear()
+
+
+@pytest.fixture(scope="function")
+def mock_streamlit_page_config():
+    """Mock Streamlit page configuration."""
+    with patch('streamlit_app.st.set_page_config') as mock_config:
+        yield mock_config
+
+
+@pytest.fixture(scope="function")
+def mock_streamlit_empty():
+    """Mock Streamlit empty placeholders."""
+    with patch('streamlit_app.st.empty') as mock_empty:
+        mock_placeholder = MagicMock()
+        mock_container = MagicMock()
+        mock_placeholder.container.return_value = mock_container
+        mock_empty.return_value = mock_placeholder
+        yield mock_empty, mock_placeholder, mock_container
+
+
+@pytest.fixture(scope="function")
+def mock_streamlit_status():
+    """Mock Streamlit status context manager."""
+    with patch('streamlit_app.st.status') as mock_status:
+        mock_status_ctx = MagicMock()
+        mock_status.return_value.__enter__.return_value = mock_status_ctx
+        mock_status.return_value.__exit__.return_value = None
+        yield mock_status, mock_status_ctx
+
+
+@pytest.fixture(scope="function")
+def sample_model_configs():
+    """Sample model configurations for testing."""
+    return [
+        {
+            'id': 'model-1',
+            'name': 'Model 1',
+            'endpoint': 'owner/model1:version1',
+            'default': True
+        },
+        {
+            'id': 'model-2',
+            'name': 'Model 2',
+            'endpoint': 'owner/model2:version2'
+        }
+    ]

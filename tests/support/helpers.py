@@ -1,6 +1,8 @@
 """Test helper utilities for common testing patterns."""
-from typing import Dict, Any, List
-from unittest.mock import Mock
+from typing import Dict, Any, List, Optional
+from unittest.mock import Mock, MagicMock
+import zipfile
+import io
 
 
 def create_mock_image_url(index: int = 1) -> str:
@@ -71,3 +73,74 @@ def create_mock_streamlit_form_data(
         "prompt": prompt,
         "negative_prompt": negative_prompt
     }
+
+
+def create_mock_zip_file(image_urls: List[str]) -> bytes:
+    """Create a mock ZIP file containing images.
+    
+    Args:
+        image_urls: List of image URLs to include in ZIP
+        
+    Returns:
+        Bytes of ZIP file
+    """
+    zip_io = io.BytesIO()
+    with zipfile.ZipFile(zip_io, 'w') as zipf:
+        for i, url in enumerate(image_urls):
+            zipf.writestr(f"output_file_{i+1}.png", b'fake-image-data')
+    zip_io.seek(0)
+    return zip_io.getvalue()
+
+
+def create_mock_streamlit_session_state(**kwargs) -> Dict[str, Any]:
+    """Create a mock Streamlit session state dictionary.
+    
+    Args:
+        **kwargs: Key-value pairs for session state
+        
+    Returns:
+        Dictionary representing session state
+    """
+    default_state = {
+        'model_configs': [],
+        'selected_model': None,
+        'generated_image': None,
+        'all_images': []
+    }
+    default_state.update(kwargs)
+    return default_state
+
+
+def create_mock_replicate_error(error_type: str = "generic") -> Exception:
+    """Create a mock Replicate API error.
+    
+    Args:
+        error_type: Type of error ('generic', 'timeout', 'rate_limit', 'invalid_input')
+        
+    Returns:
+        Exception instance
+    """
+    error_messages = {
+        'generic': Exception("API Error"),
+        'timeout': TimeoutError("Request timeout"),
+        'rate_limit': Exception("Rate limit exceeded"),
+        'invalid_input': ValueError("Invalid input parameters")
+    }
+    return error_messages.get(error_type, Exception("API Error"))
+
+
+def create_mock_http_response(status_code: int = 200, content: bytes = b'fake-image-data') -> Mock:
+    """Create a mock HTTP response.
+    
+    Args:
+        status_code: HTTP status code
+        content: Response content as bytes
+        
+    Returns:
+        Mock response object
+    """
+    mock_response = Mock()
+    mock_response.status_code = status_code
+    mock_response.content = content
+    mock_response.text = content.decode('utf-8', errors='ignore')
+    return mock_response

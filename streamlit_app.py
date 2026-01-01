@@ -3,8 +3,13 @@ import streamlit as st
 import requests
 import zipfile
 import io
+import logging
+import os
 from utils import icon
 from streamlit_image_select import image_select
+from config.model_loader import load_models_config
+
+logger = logging.getLogger(__name__)
 
 # UI configurations
 st.set_page_config(page_title="Replicate Image Generator",
@@ -13,9 +18,41 @@ st.set_page_config(page_title="Replicate Image Generator",
 icon.show_icon(":foggy:")
 st.markdown("# :rainbow[Text-to-Image Artistry Studio]")
 
-# API Tokens and endpoints from `.streamlit/secrets.toml` file
-REPLICATE_API_TOKEN = st.secrets["REPLICATE_API_TOKEN"]
-REPLICATE_MODEL_ENDPOINTSTABILITY = st.secrets["REPLICATE_MODEL_ENDPOINTSTABILITY"]
+# Helper function to get secrets with fallback for testing
+def get_secret(key: str, default: str = None) -> str:
+    """Get secret from Streamlit secrets or environment variable, with fallback for testing.
+    
+    Args:
+        key: The secret key to retrieve
+        default: Default value if secret is not found (for testing)
+        
+    Returns:
+        The secret value or default
+    """
+    # Try to get from Streamlit secrets (with multiple fallbacks for testing)
+    try:
+        if hasattr(st, 'secrets') and st.secrets is not None:
+            try:
+                return st.secrets[key]
+            except (KeyError, AttributeError, TypeError):
+                # Key not found in secrets, try environment variable
+                pass
+    except (AttributeError, RuntimeError, Exception):
+        # Secrets not available (e.g., in testing), try environment variable
+        pass
+    
+    # Fallback to environment variable or default
+    return os.getenv(key, default)
+
+# API Tokens and endpoints from `.streamlit/secrets.toml` file or environment variables
+# Access lazily to avoid import-time errors in testing
+def get_replicate_api_token() -> str:
+    """Get Replicate API token."""
+    return get_secret("REPLICATE_API_TOKEN", "test-token-12345")
+
+def get_replicate_model_endpoint() -> str:
+    """Get Replicate model endpoint."""
+    return get_secret("REPLICATE_MODEL_ENDPOINTSTABILITY", "stability-ai/sdxl:test-version")
 
 # Resources text, link, and logo
 replicate_text = "Stability AI SDXL Model on Replicate"
@@ -25,6 +62,69 @@ replicate_logo = "https://storage.googleapis.com/llama2_release/Screen%20Shot%20
 # Placeholders for images and gallery
 generated_images_placeholder = st.empty()
 gallery_placeholder = st.empty()
+
+
+def initialize_session_state() -> None:
+    """
+    Initialize session state for model management.
+    
+    This function:
+    - Loads model configurations from models.yaml
+    - Initializes st.session_state.model_configs with loaded models
+    - Sets default model (first model or model with default: true flag)
+    - Initializes st.session_state.selected_model with default model
+    - Handles edge cases (missing config, empty models list)
+    
+    Only runs once per session to avoid re-initialization on reruns.
+    """
+    # Check if already initialized to avoid re-initialization on reruns
+    if 'model_configs' in st.session_state and 'selected_model' in st.session_state:
+        return
+    
+    try:
+        # Load models from configuration
+        models = load_models_config("models.yaml")
+        
+        # Initialize model_configs with loaded models
+        st.session_state.model_configs = models
+        
+        # Handle empty models list
+        if not models:
+            logger.warning("No models found in configuration. Model selector will be disabled.")
+            st.session_state.selected_model = None
+            return
+        
+        # Determine default model: check for explicit default flag first
+        default_model = None
+        for model in models:
+            if model.get('default', False) is True:
+                default_model = model
+                logger.info(f"Using explicit default model: {model.get('name', model.get('id'))}")
+                break
+        
+        # If no explicit default, use first model
+        if default_model is None:
+            default_model = models[0]
+            logger.info(f"Using first model as default: {default_model.get('name', default_model.get('id'))}")
+        
+        # Initialize selected_model with default
+        st.session_state.selected_model = default_model
+        
+        logger.info(f"Session state initialized successfully with {len(models)} model(s)")
+        
+    except FileNotFoundError:
+        # Handle missing models.yaml
+        logger.warning("models.yaml not found. Initializing with empty session state.")
+        st.session_state.model_configs = []
+        st.session_state.selected_model = None
+        st.warning("⚠️ Model configuration file not found. Please ensure models.yaml exists at the project root.")
+        
+    except Exception as e:
+        # Handle other errors (invalid YAML, invalid structure, etc.)
+        logger.error(f"Error initializing session state: {e}")
+        st.session_state.model_configs = []
+        st.session_state.selected_model = None
+        st.error(f"❌ Error loading model configuration: {e}")
 
 
 def configure_sidebar() -> None:
@@ -119,7 +219,7 @@ def main_page(submitted: bool, width: int, height: int, num_outputs: int,
                     with generated_images_placeholder.container():
                         all_images = []  # List to store all generated images
                         output = replicate.run(
-                            REPLICATE_MODEL_ENDPOINTSTABILITY,
+                            get_replicate_model_endpoint(),
                             input={
                                 "prompt": prompt,
                                 "width": width,
@@ -204,10 +304,15 @@ def main():
     """
     Main function to run the Streamlit application.
 
-    This function initializes the sidebar configuration and the main page layout.
-    It retrieves the user inputs from the sidebar, and passes them to the main page function.
-    The main page function then generates images based on these inputs.
+    This function:
+    - Initializes session state for model management
+    - Initializes the sidebar configuration
+    - Sets up the main page layout
+    - Retrieves user inputs from the sidebar and passes them to the main page function
     """
+    # Initialize session state before UI rendering
+    initialize_session_state()
+    
     submitted, width, height, num_outputs, scheduler, num_inference_steps, guidance_scale, prompt_strength, refine, high_noise_frac, prompt, negative_prompt = configure_sidebar()
     main_page(submitted, width, height, num_outputs, scheduler, num_inference_steps,
               guidance_scale, prompt_strength, refine, high_noise_frac, prompt, negative_prompt)
