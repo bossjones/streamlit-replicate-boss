@@ -36,11 +36,23 @@ class TestShowIcon:
         
         # WHEN/THEN: Each emoji should render correctly
         for emoji in emojis:
+            # Patch the st module in utils.icon
             with patch('utils.icon.st') as mock_st:
+                # Clear function cache if it exists
+                if hasattr(show_icon, 'clear'):
+                    show_icon.clear()
+                
+                # Call the function
                 show_icon(emoji)
-                mock_st.write.assert_called_once()
+                
+                # Verify write was called
+                assert mock_st.write.called, f"st.write was not called for emoji: {emoji}"
                 html_content = mock_st.write.call_args[0][0]
                 assert emoji in html_content
+                assert 'font-size: 78px' in html_content
+                assert mock_st.write.call_args[1]['unsafe_allow_html'] is True
+                
+                # Reset mock for next iteration
                 mock_st.reset_mock()
     
     @pytest.mark.unit

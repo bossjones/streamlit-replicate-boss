@@ -37,6 +37,7 @@ markers = [
     "fast: marks tests as fast (run with '-m fast')",
     "integration: marks tests dealing with integration testing (deselect with '-m \"not integration\"')",
     "slow: marks tests as slow (run with '-m slow')",
+    "unit: marks tests as unit tests (run with '-m unit')",
     "unittest: marks tests dealing with unittest (deselect with '-m \"not unittest\"')",
 ]
 python_classes = ["Test*"]
@@ -106,3 +107,24 @@ source = ["src"]
 
 [tool.coverage.xml]
 output = "cov.xml"
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.36.2",
+    "codespell>=2.4.1",
+    "funlog>=0.2.1",
+    "monkeytype>=23.3.0",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.15.1",
+    "pytest-recording>=0.13.4",
+    "pytest-retry>=1.7.0",
+    "pytest-skip-slow>=0.0.5",
+    "pytest-skipuntil>=0.2.0",
+    "pytest-subprocess>=1.5.3",
+    "pytest-sugar>=1.1.1",
+    "pytest-timeout>=2.4.0",
+    "rich>=14.2.0",
+    "ruff>=0.14.10",
+    "ty>=0.0.8",
+]

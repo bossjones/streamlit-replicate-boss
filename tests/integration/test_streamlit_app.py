@@ -13,17 +13,49 @@ class TestConfigureSidebar:
         """[P1] Test that configure_sidebar returns all form values."""
         # GIVEN: Mocked Streamlit sidebar and form
         with patch('streamlit_app.st') as mock_st:
-            # Setup form mock
-            mock_form = MagicMock()
-            mock_st.sidebar.form.return_value.__enter__.return_value = mock_form
-            mock_st.form.return_value.__enter__.return_value = mock_form
+            # Setup sidebar as context manager
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
             
-            # Mock form inputs
-            mock_form.number_input.side_effect = [1024, 1024]  # width, height
-            mock_form.slider.side_effect = [1, 50, 7.5, 0.8, 0.8]  # num_outputs, steps, guidance, prompt_strength, noise
-            mock_form.selectbox.side_effect = ["DDIM", "expert_ensemble_refiner"]  # scheduler, refine
-            mock_form.text_area.side_effect = ["test prompt", "test negative prompt"]
-            mock_form.form_submit_button.return_value = False
+            # Setup form as context manager - form is called on sidebar_ctx
+            mock_form_ctx = MagicMock()
+            mock_form = MagicMock()
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            mock_sidebar_ctx.form.return_value = mock_form
+            
+            # Mock form inputs - the code calls st.number_input, st.slider, etc. inside the form
+            # So we need to make st delegate to mock_form_ctx when inside the form
+            # But since st is the module-level import, we make st itself have these methods
+            # that return the form context values
+            mock_form_ctx.number_input.side_effect = [1024, 1024]  # width, height
+            mock_form_ctx.slider.side_effect = [1, 50, 7.5, 0.8, 0.8]  # num_outputs, steps, guidance, prompt_strength, noise
+            mock_form_ctx.selectbox.side_effect = ["DDIM", "expert_ensemble_refiner"]  # scheduler, refine
+            mock_form_ctx.text_area.side_effect = ["test prompt", "test negative prompt"]
+            mock_form_ctx.form_submit_button.return_value = False
+            mock_form_ctx.info = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_form_ctx.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_form_ctx.expander.return_value.__exit__ = MagicMock(return_value=None)
+            
+            # Make st delegate to form_ctx when inside form (simplified - just make st methods return form_ctx methods)
+            # Actually, the form context manager makes st methods work, so we need st to have these methods
+            # that work both inside and outside form. For simplicity, make st methods return form_ctx methods' return values
+            mock_st.number_input.side_effect = [1024, 1024]
+            mock_st.slider.side_effect = [1, 50, 7.5, 0.8, 0.8]
+            mock_st.selectbox.side_effect = ["DDIM", "expert_ensemble_refiner"]
+            mock_st.text_area.side_effect = ["test prompt", "test negative prompt"]
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            
+            # Mock other sidebar calls (outside form)
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            mock_st.divider = MagicMock()
+            mock_st.markdown = MagicMock()
             
             # WHEN: Calling configure_sidebar
             result = configure_sidebar()
@@ -34,6 +66,7 @@ class TestConfigureSidebar:
             submitted, width, height, num_outputs, scheduler, num_inference_steps, \
                 guidance_scale, prompt_strength, refine, high_noise_frac, prompt, negative_prompt = result
             
+            # The form_submit_button returns the value directly
             assert submitted is False
             assert width == 1024
             assert height == 1024
@@ -52,24 +85,46 @@ class TestConfigureSidebar:
         """[P1] Test that configure_sidebar creates proper form structure."""
         # GIVEN: Mocked Streamlit
         with patch('streamlit_app.st') as mock_st:
+            # Setup sidebar as context manager
+            mock_sidebar_ctx = MagicMock()
+            mock_st.sidebar.__enter__ = MagicMock(return_value=mock_sidebar_ctx)
+            mock_st.sidebar.__exit__ = MagicMock(return_value=None)
+            
+            # Setup form as context manager - form is called on st, not sidebar_ctx
+            mock_form_ctx = MagicMock()
             mock_form = MagicMock()
-            mock_st.sidebar.form.return_value.__enter__.return_value = mock_form
-            mock_st.form.return_value.__enter__.return_value = mock_form
-            mock_form.number_input.return_value = 1024
-            mock_form.slider.return_value = 1
-            mock_form.selectbox.return_value = "DDIM"
-            mock_form.text_area.return_value = "test"
-            mock_form.form_submit_button.return_value = False
+            mock_form.__enter__ = MagicMock(return_value=mock_form_ctx)
+            mock_form.__exit__ = MagicMock(return_value=None)
+            # The code calls st.form(), so we need to mock it on mock_st
+            mock_st.form.return_value = mock_form
+            
+            # Mock form inputs - make st methods work (since code calls st.number_input, etc.)
+            mock_st.number_input.return_value = 1024
+            mock_st.slider.return_value = 1
+            mock_st.selectbox.return_value = "DDIM"
+            mock_st.text_area.return_value = "test"
+            mock_st.form_submit_button.return_value = False
+            mock_st.info = MagicMock()
+            mock_expander_ctx = MagicMock()
+            mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander_ctx)
+            mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
+            
+            # Mock other sidebar calls
+            mock_sidebar_ctx.divider = MagicMock()
+            mock_sidebar_ctx.markdown = MagicMock()
+            mock_st.divider = MagicMock()
+            mock_st.markdown = MagicMock()
             
             # WHEN: Calling configure_sidebar
             configure_sidebar()
             
             # THEN: Form structure should be created
-            mock_st.sidebar.form.assert_called_once()
-            mock_form.number_input.assert_called()
-            mock_form.slider.assert_called()
-            mock_form.selectbox.assert_called()
-            mock_form.text_area.assert_called()
+            # The code calls st.form(), not sidebar_ctx.form()
+            mock_st.form.assert_called_once()
+            assert mock_st.number_input.called
+            assert mock_st.slider.called
+            assert mock_st.selectbox.called
+            assert mock_st.text_area.called
 
 
 class TestMainPage:
