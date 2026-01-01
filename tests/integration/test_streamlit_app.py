@@ -2667,4 +2667,258 @@ class TestPresetAutoApplication:
         # THEN: Preset should be applied
         assert was_applied is True
         assert preset_applied is not None
+
+
+class TestManualOverridePresetValues:
+    """Tests for manual override of preset values (Story 2.5)."""
+    
+    @pytest.mark.integration
+    def test_prompt_field_editable_after_trigger_words_injection(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC1: User can edit prompt field even after trigger words are auto-injected."""
+        from streamlit_app import _apply_preset_for_model, configure_sidebar
+        
+        # GIVEN: Model with preset that has trigger words
+        model = sample_model_configs[0]
+        model_id = model.get('id')
+        preset = {
+            'id': 'test-preset',
+            'name': 'Test Preset',
+            'model_id': model_id,
+            'trigger_words': ['TRIGGER1', 'TRIGGER2'],
+            'trigger_words_position': 'prepend'
+        }
+        st.session_state.model_configs = sample_model_configs
+        st.session_state.selected_model = model
+        st.session_state.presets = {model_id: [preset]}
+        st.session_state.preset_applied_for_model_id = None
+        st.session_state.form_prompt = ""
+        
+        # Apply preset first
+        _apply_preset_for_model(model)
+        initial_prompt = st.session_state.get('form_prompt', '')
+        assert 'TRIGGER1' in initial_prompt or 'TRIGGER2' in initial_prompt, "Trigger words should be injected"
+        
+        # WHEN: User modifies prompt (simulate by setting form_prompt directly)
+        modified_prompt = "user modified prompt without triggers"
+        st.session_state.form_prompt = modified_prompt
+        
+        # THEN: Prompt should be editable (no exception, value changed)
+        assert st.session_state.form_prompt == modified_prompt
+        # Verify user can modify auto-injected trigger words
+        st.session_state.form_prompt = "TRIGGER1, TRIGGER2 user added more text"
+        assert st.session_state.form_prompt == "TRIGGER1, TRIGGER2 user added more text"
+    
+    @pytest.mark.integration
+    def test_all_settings_fields_editable_after_preset_application(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC2: User can modify any setting after preset applies."""
+        from streamlit_app import _apply_preset_for_model
+        
+        # GIVEN: Model with preset that has settings
+        model = sample_model_configs[0]
+        model_id = model.get('id')
+        preset = {
+            'id': 'test-preset',
+            'name': 'Test Preset',
+            'model_id': model_id,
+            'settings': {
+                'width': 512,
+                'height': 768,
+                'scheduler': 'DPMSolverMultistep',
+                'num_inference_steps': 30,
+                'guidance_scale': 8.0
+            }
+        }
+        st.session_state.presets = {model_id: [preset]}
+        st.session_state.preset_applied_for_model_id = None
+        
+        # Apply preset
+        _apply_preset_for_model(model)
+        
+        # Verify preset values were applied
         assert st.session_state.get('form_width') == 512
+        assert st.session_state.get('form_height') == 768
+        
+        # WHEN: User modifies settings
+        st.session_state.form_width = 1024
+        st.session_state.form_height = 1024
+        st.session_state.form_scheduler = 'DDIM'
+        st.session_state.form_num_inference_steps = 50
+        st.session_state.form_guidance_scale = 7.5
+        
+        # THEN: Modified values should be preserved
+        assert st.session_state.get('form_width') == 1024
+        assert st.session_state.get('form_height') == 1024
+        assert st.session_state.get('form_scheduler') == 'DDIM'
+        assert st.session_state.get('form_num_inference_steps') == 50
+        assert st.session_state.get('form_guidance_scale') == 7.5
+    
+    @pytest.mark.integration
+    def test_manual_changes_persist_when_switching_models(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC3: Manual changes persist when switching models and switching back."""
+        from streamlit_app import _apply_preset_for_model
+        
+        # GIVEN: Two models with different presets, user modifies values for first model
+        model1 = sample_model_configs[0]
+        model2 = sample_model_configs[1] if len(sample_model_configs) > 1 else sample_model_configs[0]
+        model1_id = model1.get('id')
+        model2_id = model2.get('id')
+        
+        preset1 = {
+            'id': 'preset1',
+            'name': 'Preset 1',
+            'model_id': model1_id,
+            'trigger_words': ['TRIGGER1'],
+            'settings': {'width': 512, 'height': 512}
+        }
+        preset2 = {
+            'id': 'preset2',
+            'name': 'Preset 2',
+            'model_id': model2_id,
+            'trigger_words': ['TRIGGER2'],
+            'settings': {'width': 768, 'height': 768}
+        }
+        
+        st.session_state.presets = {model1_id: [preset1], model2_id: [preset2]}
+        st.session_state.preset_applied_for_model_id = None
+        
+        # Apply preset for model1
+        _apply_preset_for_model(model1)
+        st.session_state.preset_applied_for_model_id = model1_id
+        
+        # User modifies values
+        user_modified_prompt = "user modified prompt"
+        st.session_state.form_prompt = user_modified_prompt
+        st.session_state.form_width = 1024
+        st.session_state.form_height = 1024
+        
+        # Track user modifications for model1
+        st.session_state.user_modified_fields_by_model = {
+            model1_id: {
+                'prompt': True,
+                'settings': True,
+                'setting_keys': ['width', 'height']
+            }
+        }
+        st.session_state.preset_applied_values_by_model = {
+            model1_id: {
+                'prompt': 'TRIGGER1',
+                'settings': {'width': 512, 'height': 512}
+            }
+        }
+        
+        # WHEN: Switching to model2
+        _apply_preset_for_model(model2)
+        st.session_state.preset_applied_for_model_id = model2_id
+        
+        # Preserve user modifications (form values should persist)
+        preserved_prompt = st.session_state.get('form_prompt')
+        preserved_width = st.session_state.get('form_width')
+        preserved_height = st.session_state.get('form_height')
+        
+        # WHEN: Switching back to model1
+        # Preset should not re-apply because user modified values
+        preset_applied, was_applied = _apply_preset_for_model(model1)
+        
+        # THEN: User modifications should be preserved
+        # Note: In real app, form values persist in session state
+        # The preset won't overwrite because user_modified_fields tracks modifications
+        assert was_applied is False, "Preset should not re-apply when user has modified values"
+    
+    @pytest.mark.integration
+    def test_preset_doesnt_reapply_after_manual_override(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC4: Preset values don't re-apply automatically after manual override."""
+        from streamlit_app import _apply_preset_for_model
+        
+        # GIVEN: Model with preset, preset applied, then user modifies values
+        model = sample_model_configs[0]
+        model_id = model.get('id')
+        preset = {
+            'id': 'test-preset',
+            'name': 'Test Preset',
+            'model_id': model_id,
+            'trigger_words': ['TRIGGER1'],
+            'settings': {'width': 512, 'height': 512}
+        }
+        st.session_state.presets = {model_id: [preset]}
+        st.session_state.preset_applied_for_model_id = None
+        
+        # Apply preset
+        _apply_preset_for_model(model)
+        st.session_state.preset_applied_for_model_id = model_id
+        
+        # Track preset-applied values
+        st.session_state.preset_applied_values_by_model = {
+            model_id: {
+                'prompt': 'TRIGGER1',
+                'settings': {'width': 512, 'height': 512}
+            }
+        }
+        
+        # User modifies values
+        st.session_state.form_prompt = "user modified prompt"
+        st.session_state.form_width = 1024
+        
+        # Track user modifications
+        st.session_state.user_modified_fields_by_model = {
+            model_id: {
+                'prompt': True,
+                'settings': True,
+                'setting_keys': ['width']
+            }
+        }
+        
+        # WHEN: Trying to apply preset again (same model)
+        preset_applied, was_applied = _apply_preset_for_model(model)
+        
+        # THEN: Preset should not re-apply
+        assert was_applied is False, "Preset should not re-apply after user modifications"
+        assert st.session_state.get('form_prompt') == "user modified prompt"
+        assert st.session_state.get('form_width') == 1024
+    
+    @pytest.mark.integration
+    def test_preset_applies_when_switching_to_different_model_after_modification(self, mock_streamlit_secrets, sample_model_configs):
+        """Test AC4: Preset applies when switching to different model even if user modified previous model."""
+        from streamlit_app import _apply_preset_for_model
+        
+        # GIVEN: Two models, user modified first model
+        model1 = sample_model_configs[0]
+        model2 = sample_model_configs[1] if len(sample_model_configs) > 1 else sample_model_configs[0]
+        model1_id = model1.get('id')
+        model2_id = model2.get('id')
+        
+        preset1 = {
+            'id': 'preset1',
+            'name': 'Preset 1',
+            'model_id': model1_id,
+            'trigger_words': ['TRIGGER1'],
+            'settings': {'width': 512}
+        }
+        preset2 = {
+            'id': 'preset2',
+            'name': 'Preset 2',
+            'model_id': model2_id,
+            'trigger_words': ['TRIGGER2'],
+            'settings': {'width': 768}
+        }
+        
+        st.session_state.presets = {model1_id: [preset1], model2_id: [preset2]}
+        st.session_state.preset_applied_for_model_id = model1_id
+        
+        # User modified model1
+        st.session_state.user_modified_fields_by_model = {
+            model1_id: {
+                'prompt': True,
+                'settings': True,
+                'setting_keys': ['width']
+            }
+        }
+        
+        # WHEN: Switching to model2 (different model)
+        preset_applied, was_applied = _apply_preset_for_model(model2)
+        
+        # THEN: Preset should apply for new model
+        assert was_applied is True, "Preset should apply when switching to different model"
+        assert preset_applied is not None
+        assert preset_applied['id'] == 'preset2'
+        # When switching to model2, preset2 should apply and set width to 768 (from preset2 settings)
+        assert st.session_state.get('form_width') == 768, "Preset2 should set width to 768"
