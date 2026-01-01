@@ -1,0 +1,230 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.5</storyId>
+    <title>Allow Manual Override of Preset Values</title>
+    <status>drafted</status>
+    <generatedAt>2026-01-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-5-allow-manual-override-of-preset-values.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>modify preset values after they're applied</iWant>
+    <soThat>I can customize settings for my specific needs</soThat>
+    <tasks>
+      <task id="1" title="Ensure prompt field is editable after trigger words injection">
+        <subtasks>
+          <subtask>Verify prompt field (`st.text_area` or `st.text_input`) is not disabled after preset application</subtask>
+          <subtask>Test that user can type in prompt field after trigger words are auto-injected</subtask>
+          <subtask>Verify user can delete or modify auto-injected trigger words</subtask>
+          <subtask>Ensure prompt field maintains normal Streamlit text input behavior</subtask>
+        </subtasks>
+      </task>
+      <task id="2" title="Ensure all settings fields are editable after preset application">
+        <subtasks>
+          <subtask>Verify all form fields (width, height, scheduler, num_inference_steps, guidance_scale, etc.) are editable</subtask>
+          <subtask>Test that user can modify each setting after preset values are applied</subtask>
+          <subtask>Verify form fields maintain normal Streamlit widget behavior (sliders, selectboxes, number inputs)</subtask>
+          <subtask>Ensure no fields are disabled or read-only after preset application</subtask>
+        </subtasks>
+      </task>
+      <task id="3" title="Preserve manual changes when switching models">
+        <subtasks>
+          <subtask>Track user modifications to prompt and settings</subtask>
+          <subtask>When switching models, preserve user-modified values instead of overwriting with new preset</subtask>
+          <subtask>When switching back to previous model, preserve user modifications (don't re-apply preset)</subtask>
+          <subtask>Implement tracking mechanism to distinguish user-modified values from preset-applied values</subtask>
+          <subtask>Consider using flags or tracking which fields user has modified</subtask>
+        </subtasks>
+      </task>
+      <task id="4" title="Prevent automatic re-application of preset after manual override">
+        <subtasks>
+          <subtask>Modify preset application logic to check if user has manually modified values</subtask>
+          <subtask>If user has modified prompt or settings, don't re-apply preset on same model</subtask>
+          <subtask>Only re-apply preset when switching to a different model (new model_id)</subtask>
+          <subtask>Update `_apply_preset_for_model()` function to respect user modifications</subtask>
+          <subtask>Consider adding user modification tracking flags (e.g., `user_modified_prompt`, `user_modified_settings`)</subtask>
+        </subtasks>
+      </task>
+      <task id="5" title="Add visual distinction between preset-applied and user-modified values (Optional)">
+        <subtasks>
+          <subtask>Research Streamlit components that can show visual distinction (e.g., info badges, color coding)</subtask>
+          <subtask>Add visual indicator (e.g., icon, badge, or subtle styling) to show which values came from preset</subtask>
+          <subtask>Add visual indicator to show which values were user-modified</subtask>
+          <subtask>Ensure visual distinction is clear but not intrusive</subtask>
+          <subtask>Consider using `st.info()` or `st.caption()` to indicate preset-applied values</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">User can edit prompt field even after trigger words are auto-injected</criterion>
+    <criterion id="2">User can modify any setting (width, height, scheduler, etc.) after preset applies</criterion>
+    <criterion id="3">Manual changes persist when switching models and switching back</criterion>
+    <criterion id="4">Preset values don't re-apply automatically after manual override (until model switch)</criterion>
+    <criterion id="5">Clear visual distinction between preset-applied values and user-modified values (optional enhancement)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact path="docs/epics.md" title="Epic Breakdown" section="Story 2.5">
+        <snippet>As a user, I want to modify preset values after they're applied, So that I can customize settings for my specific needs. Acceptance criteria include: user can edit prompt field after trigger words injection, modify any setting after preset applies, manual changes persist when switching models, preset values don't re-apply automatically after manual override, and optional visual distinction.</snippet>
+      </artifact>
+      <artifact path="docs/PRD.md" title="Product Requirements Document" section="Preset-Management">
+        <snippet>FR014: The system must allow users to manually override preset values (prompt, settings) after preset application. FR008: When switching models, the system must preserve the current prompt text and user-entered settings (width, height, scheduler, etc.).</snippet>
+      </artifact>
+      <artifact path="docs/PRD.md" title="Product Requirements Document" section="Model-Switching-&-State-Management">
+        <snippet>FR008: When switching models, the system must preserve the current prompt text and user-entered settings (width, height, scheduler, etc.). NFR001: Model switching must complete in less than 1 second without page reload or visible UI blocking.</snippet>
+      </artifact>
+      <artifact path="docs/architecture.md" title="Architecture Documentation" section="Component Overview">
+        <snippet>configure_sidebar() function sets up sidebar UI with form inputs. Returns tuple of form values. Features include expandable advanced settings, number inputs, sliders, selectboxes, text areas, resource links and credits section.</snippet>
+      </artifact>
+      <artifact path="docs/stories/2-4-auto-apply-preset-on-model-selection.md" title="Previous Story: Auto-Apply Preset" section="Dev Notes">
+        <snippet>Preset application function `_apply_preset_for_model()` handles preset application logic. Current implementation uses `preset_applied_for_model_id` to prevent re-applying preset on same model during same render cycle. However, this doesn't track user modifications - it only prevents re-application on same render. Need to enhance this to track user modifications.</snippet>
+      </artifact>
+      <artifact path="docs/stories/2-4-auto-apply-preset-on-model-selection.md" title="Previous Story: Auto-Apply Preset" section="Completion Notes List">
+        <snippet>Created `_apply_preset_for_model()` helper function to handle preset application logic (lines 41-152). Integrated preset application into `configure_sidebar()` function after model selector update (lines 571-583). Added tracking mechanism (`preset_applied_for_model_id`) to prevent re-applying preset on same model.</snippet>
+      </artifact>
+    </docs>
+    <code>
+      <artifact path="streamlit_app.py" kind="function" symbol="_apply_preset_for_model()" lines="41-152" reason="Core preset application function. Currently tracks which model preset was applied but doesn't track user modifications. Need to enhance to respect user modifications and prevent re-application if user has modified values.">
+        <snippet>def _apply_preset_for_model(selected_model: dict) -> tuple[dict | None, bool]:
+    """
+    Apply preset for selected model if preset exists.
+    
+    This function:
+    - Finds matching preset by model_id
+    - Applies trigger words to prompt (prepend or append)
+    - Applies preset settings to form field session state keys
+    - Returns preset dict and success flag
+    """
+    # ... preset lookup and application logic ...
+    # Track which model preset was applied to prevent re-applying
+    applied_model_id = st.session_state.get('preset_applied_for_model_id', None)
+    if applied_model_id == model_id:
+        # Preset already applied for this model, don't re-apply
+        return preset_to_apply, False</snippet>
+      </artifact>
+      <artifact path="streamlit_app.py" kind="function" symbol="configure_sidebar()" lines="488-650" reason="Main sidebar configuration function. Contains model selector, preset application trigger, and form field definitions. Need to add user modification tracking and prevent preset re-application if user has modified values.">
+        <snippet>def configure_sidebar() -> None:
+    """
+    Setup and display the sidebar elements.
+    
+    This function configures the sidebar of the Streamlit application, 
+    including the form for user inputs and the resources section.
+    """
+    with st.sidebar:
+        # Model selector - placed at top of sidebar before form
+        # ... model selector logic ...
+        
+        # Apply preset for newly selected model (if model changed or on initial load)
+        applied_model_id = st.session_state.get('preset_applied_for_model_id', None)
+        current_model_id = new_selected_model.get('id')
+        should_apply_preset = model_changed or (applied_model_id != current_model_id)
+        
+        if should_apply_preset:
+            # Apply preset for new model
+            preset_applied, was_applied = _apply_preset_for_model(new_selected_model)</snippet>
+      </artifact>
+      <artifact path="streamlit_app.py" kind="helper function" symbol="_set_session_state()" lines="24-38" reason="Helper function to set session state values that works with both dict-style and attribute-style access. Used throughout codebase for session state updates.">
+        <snippet>def _set_session_state(key: str, value: any) -> None:
+    """
+    Helper function to set session state values that works with both
+    dict-style and attribute-style access (for testing compatibility).
+    """
+    try:
+        # Try attribute-style access first (works in real Streamlit)
+        setattr(st.session_state, key, value)
+    except (AttributeError, TypeError):
+        # Fall back to dict-style access (works in tests with mocked dict)
+        st.session_state[key] = value</snippet>
+      </artifact>
+      <artifact path="streamlit_app.py" kind="session state" symbol="st.session_state" lines="500-504,556-569" reason="Session state keys used for form fields: form_prompt, form_width, form_height, form_scheduler, etc. Also tracks preserved_prompt and preserved_settings. Need to add user modification tracking keys.">
+        <snippet># Initialize preserved state if not exists
+if 'preserved_prompt' not in st.session_state:
+    _set_session_state('preserved_prompt', None)
+if 'preserved_settings' not in st.session_state:
+    _set_session_state('preserved_settings', None)
+
+# ... later in code ...
+if 'form_width' in st.session_state:
+    _set_session_state('preserved_prompt', st.session_state.get('form_prompt'))
+    _set_session_state('preserved_settings', {
+        'width': st.session_state.get('form_width'),
+        'height': st.session_state.get('form_height'),
+        # ... other settings ...
+    })</snippet>
+      </artifact>
+      <artifact path="utils/preset_manager.py" kind="module" symbol="load_presets_config()" lines="10-136" reason="Function to load presets from YAML. Presets are stored as {model_id: [preset1, preset2, ...]}. Returns dict grouped by model_id for efficient lookup.">
+        <snippet>def load_presets_config(file_path: str = "presets.yaml", validate_model_ids: bool = True) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Load and parse presets.yaml configuration file.
+    
+    Returns:
+        Dictionary grouped by model_id: {model_id: [preset1, preset2, ...]}.
+        Returns empty dict {} if file is missing (graceful degradation).
+    """</snippet>
+      </artifact>
+      <artifact path="tests/integration/test_streamlit_app.py" kind="test file" symbol="TestConfigureSidebar" lines="10-100" reason="Integration tests for configure_sidebar function. Tests form structure, form values, and sidebar behavior. Can reference for testing patterns when adding user modification tracking tests.">
+        <snippet>class TestConfigureSidebar:
+    """Tests for configure_sidebar() function."""
+    
+    @pytest.mark.integration
+    def test_configure_sidebar_returns_form_values(self, mock_streamlit_secrets):
+        """[P1] Test that configure_sidebar returns all form values."""
+        # GIVEN: Mocked Streamlit sidebar and form
+        # ... test implementation ...</snippet>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="streamlit" version=">=1.50.0" reason="Web framework for UI. Form fields (text_area, number_input, selectbox, slider) are always editable by default. Need to track user modifications via session state."/>
+        <package name="pyyaml" version=">=6.0.1" reason="YAML parsing for preset configuration files."/>
+        <package name="pytest" version=">=8.0.0" reason="Testing framework. Used for integration tests covering form behavior and preset application."/>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Streamlit form fields (text_area, number_input, selectbox, slider) are always editable by default. No special handling needed to make them editable - they already are. The challenge is tracking user modifications and preventing preset re-application.</constraint>
+    <constraint>Session state management: Form field values are stored in session state. When user interacts with form field, Streamlit updates session state automatically. Need to detect when user modifies values vs when preset applies values.</constraint>
+    <constraint>User modification detection: Streamlit doesn't provide built-in "user modified" flag, so need custom tracking. Options: track previous values, use form submission callback, or add modification flags.</constraint>
+    <constraint>Preset re-application prevention: Current `preset_applied_for_model_id` tracking prevents re-application on same render cycle. Need to enhance to also prevent re-application if user has modified values. Consider adding `user_modified_fields` tracking dict or flags.</constraint>
+    <constraint>State preservation requirement: FR008 requires preserving prompt and settings when switching models. However, Story 2.5 requires preserving user modifications even when switching models. Need to balance: preserve user modifications, but allow preset to apply for new model if user hasn't modified those specific fields.</constraint>
+    <constraint>Performance requirement: User modification tracking must not impact performance (NFR001: &lt;1 second). Tracking mechanism should be lightweight (dict lookups, flag checks).</constraint>
+    <constraint>Visual distinction options: Streamlit provides limited options for visual distinction. Can use `st.info()`, `st.caption()`, `st.markdown()` with icons, or form field labels. Consider adding badges or icons next to fields to indicate preset-applied vs user-modified.</constraint>
+    <constraint>File location: Modify `streamlit_app.py` in project root. Enhance `_apply_preset_for_model()` function and preset application logic in `configure_sidebar()`. No new modules needed.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="_apply_preset_for_model()" kind="function signature" signature="def _apply_preset_for_model(selected_model: dict) -> tuple[dict | None, bool]" path="streamlit_app.py">
+      <description>Core preset application function. Currently applies preset settings and trigger words. Need to enhance to check for user modifications before applying preset.</description>
+    </interface>
+    <interface name="st.session_state" kind="session state dictionary" signature="dict-like object with keys: form_prompt, form_width, form_height, form_scheduler, preset_applied_for_model_id, preserved_prompt, preserved_settings" path="streamlit_app.py">
+      <description>Session state storage for form field values and tracking flags. Need to add user modification tracking keys (e.g., user_modified_fields dict or individual flags).</description>
+    </interface>
+    <interface name="configure_sidebar()" kind="function signature" signature="def configure_sidebar() -> None" path="streamlit_app.py">
+      <description>Main sidebar configuration function. Contains model selector, preset application trigger, and form field definitions. Need to add user modification detection and tracking.</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Testing uses pytest framework with integration test markers. Tests follow GIVEN/WHEN/THEN structure. Mock Streamlit components for testing. Test file location: tests/integration/test_streamlit_app.py. Tests should cover all acceptance criteria with both positive and negative scenarios. Use proper mocking for Streamlit session state and form interactions.</standards>
+    <locations>
+      <location>tests/integration/test_streamlit_app.py</location>
+      <location>tests/unit/</location>
+    </locations>
+    <ideas>
+      <idea criterion="1">Test that prompt field is editable after preset application: Mock preset application, verify form field is not disabled, verify user can type in field, verify user can modify auto-injected trigger words.</idea>
+      <idea criterion="2">Test that all settings fields are editable after preset application: Mock preset application with various settings, verify each form field type (number_input, selectbox, slider) is editable, verify user can modify each setting.</idea>
+      <idea criterion="3">Test manual changes persist when switching models: Set up user-modified prompt and settings, switch to different model, verify user modifications are preserved, switch back to original model, verify user modifications still preserved and preset doesn't re-apply.</idea>
+      <idea criterion="4">Test preset doesn't re-apply after manual override: Apply preset, user modifies prompt/settings, verify preset doesn't re-apply on same model, verify preset applies when switching to different model, verify preset doesn't re-apply when switching back after modification.</idea>
+      <idea criterion="5">Test visual distinction (optional): Mock visual indicators, verify indicators show preset-applied values, verify indicators show user-modified values, verify indicators update correctly when values change.</idea>
+      <idea general="user modification tracking">Test user modification tracking mechanism: Verify tracking flags/dict are set when user modifies values, verify tracking persists across model switches, verify tracking prevents preset re-application.</idea>
+      <idea general="edge cases">Test edge cases: No preset exists (should allow manual editing), preset applied then user clears field (should track as modified), rapid model switching with modifications (should preserve modifications), form submission with modified values (should preserve modifications).</idea>
+    </ideas>
+  </tests>
+</story-context>

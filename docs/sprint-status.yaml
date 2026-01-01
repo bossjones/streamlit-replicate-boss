@@ -53,7 +53,7 @@ development_status:
   2-2-load-and-store-preset-configurations: done
   2-3-display-model-information-in-sidebar: done
   2-4-auto-apply-preset-on-model-selection: done
-  2-5-allow-manual-override-of-preset-values: backlog
+  2-5-allow-manual-override-of-preset-values: done
   2-6-implement-backward-compatibility-with-existing-configuration: backlog
   2-7-enhanced-ui-updates-for-model-switching: backlog
   epic-2-retrospective: optional

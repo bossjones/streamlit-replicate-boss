@@ -46,6 +46,7 @@ def _apply_preset_for_model(selected_model: dict) -> tuple[dict | None, bool]:
     - Finds matching preset by model_id
     - Applies trigger words to prompt (prepend or append)
     - Applies preset settings to form field session state keys
+    - Respects user modifications and doesn't re-apply if user has modified values
     - Returns preset dict and success flag
     
     Args:
@@ -81,15 +82,30 @@ def _apply_preset_for_model(selected_model: dict) -> tuple[dict | None, bool]:
     if not preset_to_apply:
         preset_to_apply = model_presets[0]
     
-    # Track which model preset was applied to prevent re-applying
+    # Check if user has modified values for this model - if so, don't re-apply preset
+    user_modified_fields_by_model = st.session_state.get('user_modified_fields_by_model', {})
+    user_modified_fields = user_modified_fields_by_model.get(model_id, {
+        'prompt': False,
+        'settings': False,
+        'setting_keys': []
+    })
     applied_model_id = st.session_state.get('preset_applied_for_model_id', None)
+    
+    # Check if user has modified values for this model - if so, don't re-apply preset
+    # This check applies whether we're on the same model or switching back to a previously modified model
+    if user_modified_fields.get('prompt', False) or user_modified_fields.get('settings', False):
+        # User has modified values for this model, don't re-apply preset
+        return preset_to_apply, False
+    
+    # If preset was already applied for this model and no user modifications, don't re-apply
     if applied_model_id == model_id:
-        # Preset already applied for this model, don't re-apply
+        # No user modifications, but preset already applied - don't re-apply
         return preset_to_apply, False
     
     # Apply trigger words to prompt if available
+    # Only apply if user hasn't modified the prompt
     trigger_words = preset_to_apply.get('trigger_words')
-    if trigger_words:
+    if trigger_words and not user_modified_fields.get('prompt', False):
         # Determine injection position (default to "prepend")
         position = preset_to_apply.get('trigger_words_position', 'prepend')
         
@@ -126,6 +142,7 @@ def _apply_preset_for_model(selected_model: dict) -> tuple[dict | None, bool]:
             _set_session_state('form_prompt', new_prompt)
     
     # Apply preset settings to form field session state keys
+    # Only apply settings that user hasn't modified
     settings = preset_to_apply.get('settings', {})
     if settings:
         # Map preset settings to form field keys
@@ -142,8 +159,12 @@ def _apply_preset_for_model(selected_model: dict) -> tuple[dict | None, bool]:
             'negative_prompt': 'form_negative_prompt',
         }
         
+        # Get list of user-modified setting keys for this model (convert to set for efficient lookup)
+        user_modified_setting_keys = set(user_modified_fields.get('setting_keys', []))
+        
         for setting_key, form_key in setting_mappings.items():
-            if setting_key in settings:
+            # Only apply if user hasn't modified this specific setting
+            if setting_key in settings and setting_key not in user_modified_setting_keys:
                 _set_session_state(form_key, settings[setting_key])
     
     # Track that preset was applied for this model
@@ -503,6 +524,17 @@ def configure_sidebar() -> None:
         if 'preserved_settings' not in st.session_state:
             _set_session_state('preserved_settings', None)
         
+        # Initialize user modification tracking if not exists
+        # Track modifications per model_id to preserve across model switches
+        if 'user_modified_fields_by_model' not in st.session_state:
+            _set_session_state('user_modified_fields_by_model', {})
+        
+        # Initialize preset-applied values tracking if not exists
+        # This tracks what values were set by preset, so we can detect user modifications
+        # Track per model_id to preserve across model switches
+        if 'preset_applied_values_by_model' not in st.session_state:
+            _set_session_state('preset_applied_values_by_model', {})
+        
         # Check if model_configs exists and is not empty before allowing switch
         if not model_configs:
             st.warning("⚠️ No models configured. Please check models.yaml file.")
@@ -585,8 +617,40 @@ def configure_sidebar() -> None:
                             # Apply preset for new model
                             preset_applied, was_applied = _apply_preset_for_model(new_selected_model)
                             
-                            # Show visual indication if preset was applied
+                            # Track preset-applied values after applying preset (per model)
                             if was_applied and preset_applied:
+                                current_model_id = new_selected_model.get('id')
+                                preset_applied_values_by_model = st.session_state.get('preset_applied_values_by_model', {})
+                                
+                                # Store what values were set by preset for comparison later
+                                preset_applied_values = {
+                                    'prompt': st.session_state.get('form_prompt'),
+                                    'settings': {}
+                                }
+                                
+                                # Store preset-applied setting values
+                                setting_mappings = {
+                                    'width': 'form_width',
+                                    'height': 'form_height',
+                                    'num_outputs': 'form_num_outputs',
+                                    'scheduler': 'form_scheduler',
+                                    'num_inference_steps': 'form_num_inference_steps',
+                                    'guidance_scale': 'form_guidance_scale',
+                                    'prompt_strength': 'form_prompt_strength',
+                                    'refine': 'form_refine',
+                                    'high_noise_frac': 'form_high_noise_frac',
+                                    'negative_prompt': 'form_negative_prompt',
+                                }
+                                
+                                preset_settings = preset_applied.get('settings', {})
+                                for setting_key, form_key in setting_mappings.items():
+                                    if setting_key in preset_settings:
+                                        preset_applied_values['settings'][setting_key] = preset_settings[setting_key]
+                                
+                                # Store preset-applied values for this model
+                                preset_applied_values_by_model[current_model_id] = preset_applied_values
+                                _set_session_state('preset_applied_values_by_model', preset_applied_values_by_model)
+                                
                                 preset_name = preset_applied.get('name', 'Default')
                                 model_name = new_selected_model.get('name', new_selected_model.get('id', 'Model'))
                                 st.success(f"✅ Preset '{preset_name}' applied for {model_name}")
@@ -711,7 +775,7 @@ def configure_sidebar() -> None:
                 )
                 prompt_strength_default = preserved_settings.get('prompt_strength', 0.8) if preserved_settings else 0.8
                 prompt_strength = st.slider(
-                    "Prompt strength when using img2img/inpaint(1.0 corresponds to full destruction of infomation in image)", 
+                    "Prompt strength when using img2img/inpaint(1.0 corresponds to full destruction of information in image)", 
                     value=prompt_strength_default, 
                     max_value=1.0, 
                     step=0.1,
@@ -753,6 +817,75 @@ def configure_sidebar() -> None:
             # The Big Red "Submit" Button!
             submitted = st.form_submit_button(
                 "Submit", type="primary", use_container_width=True)
+        
+        # Detect user modifications by comparing current form values with preset-applied values
+        # This runs after form fields are rendered, so we can detect if user changed values
+        # Get current model to track modifications per model
+        current_model = st.session_state.get('selected_model', None)
+        current_model_id = current_model.get('id') if current_model else None
+        
+        if current_model_id:
+            preset_applied_values_by_model = st.session_state.get('preset_applied_values_by_model', {})
+            preset_applied_values = preset_applied_values_by_model.get(current_model_id, {'prompt': None, 'settings': {}})
+            
+            user_modified_fields_by_model = st.session_state.get('user_modified_fields_by_model', {})
+            user_modified_fields = user_modified_fields_by_model.get(current_model_id, {
+                'prompt': False,
+                'settings': False,
+                'setting_keys': []  # Use list instead of set
+            })
+        else:
+            # No model selected, skip tracking
+            preset_applied_values = {'prompt': None, 'settings': {}}
+            user_modified_fields = {'prompt': False, 'settings': False, 'setting_keys': []}
+        
+        # Check if prompt was modified
+        current_prompt = st.session_state.get('form_prompt', '')
+        preset_prompt = preset_applied_values.get('prompt')
+        if preset_prompt is not None and current_prompt != preset_prompt:
+            # User has modified prompt
+            user_modified_fields['prompt'] = True
+        
+        # Check if settings were modified
+        setting_mappings = {
+            'width': 'form_width',
+            'height': 'form_height',
+            'num_outputs': 'form_num_outputs',
+            'scheduler': 'form_scheduler',
+            'num_inference_steps': 'form_num_inference_steps',
+            'guidance_scale': 'form_guidance_scale',
+            'prompt_strength': 'form_prompt_strength',
+            'refine': 'form_refine',
+            'high_noise_frac': 'form_high_noise_frac',
+            'negative_prompt': 'form_negative_prompt',
+        }
+        
+        preset_settings = preset_applied_values.get('settings', {})
+        modified_setting_keys = set()
+        
+        for setting_key, form_key in setting_mappings.items():
+            if setting_key in preset_settings:
+                # This setting was set by preset, check if user modified it
+                current_value = st.session_state.get(form_key)
+                preset_value = preset_settings[setting_key]
+                
+                # Compare values (handle different types)
+                if current_value != preset_value:
+                    modified_setting_keys.add(setting_key)
+        
+        # Update user modification tracking (per model)
+        if current_model_id:
+            if modified_setting_keys:
+                user_modified_fields['settings'] = True
+                # Convert existing list to set, merge with new modifications, convert back to list
+                existing_keys = set(user_modified_fields.get('setting_keys', []))
+                all_modified_keys = existing_keys | modified_setting_keys
+                user_modified_fields['setting_keys'] = list(all_modified_keys)
+            
+            # Update session state with modified tracking for this model
+            user_modified_fields_by_model = st.session_state.get('user_modified_fields_by_model', {})
+            user_modified_fields_by_model[current_model_id] = user_modified_fields
+            _set_session_state('user_modified_fields_by_model', user_modified_fields_by_model)
 
         # Credits and resources
         st.divider()
