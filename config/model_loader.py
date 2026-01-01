@@ -26,13 +26,13 @@ def load_models_config(file_path: str = "models.yaml") -> List[Dict[str, Any]]:
     
     # Handle missing file
     if not file_path_obj.exists():
-        logger.warning(f"models.yaml not found at {file_path}")
-        # Check secrets.toml fallback (for backward compatibility - Story 1.7)
-        # For now, raise error as per AC3 requirement
-        raise FileNotFoundError(
+        error_msg = (
             f"Configuration file not found: {file_path}. "
-            "Please ensure models.yaml exists at the project root."
+            "Please ensure models.yaml exists at the project root. "
+            "The application will attempt to use fallback configuration from secrets.toml."
         )
+        logger.error(f"models.yaml not found at {file_path}. Error: {error_msg}")
+        raise FileNotFoundError(error_msg)
     
     # Parse YAML
     try:
@@ -40,11 +40,11 @@ def load_models_config(file_path: str = "models.yaml") -> List[Dict[str, Any]]:
             data = yaml.safe_load(f)
     except yaml.YAMLError as e:
         error_msg = f"Invalid YAML syntax in {file_path}"
-        if hasattr(e, 'problem_mark'):
+        if hasattr(e, 'problem_mark') and e.problem_mark:
             mark = e.problem_mark
             error_msg += f" at line {mark.line + 1}, column {mark.column + 1}"
         error_msg += f": {str(e)}"
-        logger.error(error_msg)
+        logger.error(f"YAML parsing error in {file_path}: {error_msg}", exc_info=True)
         raise yaml.YAMLError(error_msg) from e
     
     # Validate root structure
@@ -75,8 +75,13 @@ def load_models_config(file_path: str = "models.yaml") -> List[Dict[str, Any]]:
         required_fields = ['id', 'name', 'endpoint']
         missing_fields = [field for field in required_fields if field not in model]
         if missing_fields:
-            error_msg = f"Model {idx + 1}: Missing required fields: {', '.join(missing_fields)}"
-            logger.error(error_msg)
+            model_id = model.get('id', f'Model {idx + 1}')
+            model_name = model.get('name', 'Unknown')
+            error_msg = (
+                f"Model '{model_name}' (id: {model_id}): Missing required fields: {', '.join(missing_fields)}. "
+                f"Please ensure all models in models.yaml have 'id', 'name', and 'endpoint' fields."
+            )
+            logger.error(f"Validation error for model at index {idx + 1}: {error_msg}")
             raise ValueError(error_msg)
         
         # Validate field types
@@ -139,7 +144,14 @@ def validate_model_config(model: Dict[str, Any]) -> bool:
     
     # Validate endpoint format: contains '/' (basic format check)
     if '/' not in model['endpoint']:
-        raise ValueError(f"Field 'endpoint' must contain '/' character (format: owner/model:version)")
+        model_id = model.get('id', 'Unknown')
+        model_name = model.get('name', 'Unknown')
+        error_msg = (
+            f"Model '{model_name}' (id: {model_id}): Invalid endpoint format '{model['endpoint']}'. "
+            f"Endpoint must contain '/' character. Expected format: owner/model:version "
+            f"(e.g., 'stability-ai/sdxl:2b017d9b67edd2ee1401238df49d75da53c523f36e363881e057f5dc3ed3c5b2')"
+        )
+        raise ValueError(error_msg)
     
     # Validate optional fields if present
     if 'trigger_words' in model:

@@ -1,9 +1,10 @@
 """Integration tests for streamlit_app.py application."""
 import pytest
 import requests
+import yaml
 from unittest.mock import Mock, patch, MagicMock
 import streamlit as st
-from streamlit_app import configure_sidebar, main_page, main
+from streamlit_app import configure_sidebar, main_page, main, initialize_session_state
 
 
 class TestConfigureSidebar:
@@ -1596,3 +1597,303 @@ class TestModelSwitching:
                 assert call_kwargs['index'] == 1
             elif len(call_args) > 2:
                 assert call_args[2] == 1
+
+
+class TestErrorHandlingStory17:
+    """Tests for error handling and edge cases (Story 1.7)."""
+    
+    @pytest.mark.integration
+    def test_initialize_session_state_handles_missing_models_yaml_with_fallback(self, mock_streamlit_secrets):
+        """Test AC1, AC2: Missing models.yaml triggers fallback to secrets.toml (Story 1.7)."""
+        # GIVEN: models.yaml doesn't exist but secrets.toml has endpoint
+        with patch('streamlit_app.load_models_config') as mock_load, \
+             patch('streamlit_app.get_replicate_model_endpoint') as mock_get_endpoint, \
+             patch('streamlit_app.st') as mock_st:
+            
+            # Mock FileNotFoundError when loading models.yaml
+            mock_load.side_effect = FileNotFoundError("Configuration file not found: models.yaml")
+            mock_get_endpoint.return_value = 'stability-ai/sdxl:real-version'
+            
+            mock_st.session_state = {}
+            mock_st.info = MagicMock()
+            mock_st.error = MagicMock()
+            
+            # WHEN: Initializing session state
+            initialize_session_state()
+            
+            # THEN: Should use fallback configuration
+            assert 'model_configs' in mock_st.session_state
+            assert 'selected_model' in mock_st.session_state
+            assert len(mock_st.session_state['model_configs']) == 1
+            assert mock_st.session_state['selected_model']['endpoint'] == 'stability-ai/sdxl:real-version'
+            # Should display informational message about fallback
+            mock_st.info.assert_called()
+            info_call = str(mock_st.info.call_args)
+            assert "Fallback" in info_call or "fallback" in info_call.lower()
+    
+    @pytest.mark.integration
+    def test_initialize_session_state_handles_invalid_yaml_with_fallback(self, mock_streamlit_secrets):
+        """Test AC1, AC2: Invalid YAML syntax triggers fallback to secrets.toml (Story 1.7)."""
+        import yaml
+        with patch('streamlit_app.load_models_config') as mock_load, \
+             patch('streamlit_app.get_replicate_model_endpoint') as mock_get_endpoint, \
+             patch('streamlit_app.st') as mock_st:
+            
+            # Mock YAMLError when loading models.yaml
+            mock_load.side_effect = yaml.YAMLError("Invalid YAML syntax at line 5")
+            mock_get_endpoint.return_value = 'stability-ai/sdxl:real-version'
+            
+            mock_st.session_state = {}
+            mock_st.warning = MagicMock()
+            mock_st.error = MagicMock()
+            
+            # WHEN: Initializing session state
+            initialize_session_state()
+            
+            # THEN: Should use fallback configuration
+            assert 'model_configs' in mock_st.session_state
+            assert len(mock_st.session_state['model_configs']) == 1
+            # Should display warning about YAML error and fallback
+            mock_st.warning.assert_called()
+            warning_call = str(mock_st.warning.call_args)
+            assert "YAML" in warning_call or "yaml" in warning_call.lower()
+            assert "Fallback" in warning_call or "fallback" in warning_call.lower()
+    
+    @pytest.mark.integration
+    def test_initialize_session_state_handles_missing_required_fields_with_fallback(self, mock_streamlit_secrets):
+        """Test AC1, AC2: Missing required fields triggers fallback to secrets.toml (Story 1.7)."""
+        with patch('streamlit_app.load_models_config') as mock_load, \
+             patch('streamlit_app.get_replicate_model_endpoint') as mock_get_endpoint, \
+             patch('streamlit_app.st') as mock_st:
+            
+            # Mock ValueError for missing required fields
+            mock_load.side_effect = ValueError("Model 'Test Model' (id: test): Missing required fields: endpoint")
+            mock_get_endpoint.return_value = 'stability-ai/sdxl:real-version'
+            
+            mock_st.session_state = {}
+            mock_st.warning = MagicMock()
+            mock_st.error = MagicMock()
+            
+            # WHEN: Initializing session state
+            initialize_session_state()
+            
+            # THEN: Should use fallback configuration
+            assert 'model_configs' in mock_st.session_state
+            assert len(mock_st.session_state['model_configs']) == 1
+            # Should display warning about validation error and fallback
+            mock_st.warning.assert_called()
+            warning_call = str(mock_st.warning.call_args)
+            assert "Validation" in warning_call or "validation" in warning_call.lower()
+    
+    @pytest.mark.integration
+    def test_initialize_session_state_handles_missing_models_yaml_no_fallback(self, mock_streamlit_secrets):
+        """Test AC1: Missing models.yaml with no fallback displays error (Story 1.7)."""
+        with patch('streamlit_app.load_models_config') as mock_load, \
+             patch('streamlit_app.get_replicate_model_endpoint') as mock_get_endpoint, \
+             patch('streamlit_app.st') as mock_st:
+            
+            # Mock FileNotFoundError when loading models.yaml
+            mock_load.side_effect = FileNotFoundError("Configuration file not found: models.yaml")
+            # No fallback available (returns test default)
+            mock_get_endpoint.return_value = 'stability-ai/sdxl:test-version'
+            
+            mock_st.session_state = {}
+            mock_st.error = MagicMock()
+            mock_st.info = MagicMock()
+            
+            # WHEN: Initializing session state
+            initialize_session_state()
+            
+            # THEN: Should display error message
+            mock_st.error.assert_called()
+            error_call = str(mock_st.error.call_args)
+            assert "Configuration" in error_call or "configuration" in error_call.lower()
+            assert "models.yaml" in error_call.lower()
+    
+    @pytest.mark.integration
+    def test_main_page_api_error_includes_model_context(self, mock_streamlit_secrets, mock_requests_get):
+        """Test AC1: API error messages include model name for context (Story 1.7)."""
+        # GIVEN: Form submitted but API raises exception
+        submitted = True
+        selected_model = {
+            'id': 'helldiver',
+            'name': 'Helldiver Model',
+            'endpoint': 'owner/helldiver:version'
+        }
+        
+        with patch('streamlit_app.replicate.run') as mock_run:
+            mock_run.side_effect = Exception("API connection failed")
+            
+            # WHEN: Calling main_page
+            with patch('streamlit_app.st') as mock_st:
+                mock_container = MagicMock()
+                mock_st.empty.return_value.container.return_value = mock_container
+                mock_st.status.return_value.__enter__.return_value = MagicMock()
+                mock_st.status.return_value.__exit__ = MagicMock(return_value=None)
+                mock_st.session_state = {'selected_model': selected_model}
+                mock_st.get = lambda key, default=None: mock_st.session_state.get(key, default)
+                mock_st.error = MagicMock()
+                
+                main_page(
+                    submitted, 1024, 1024, 1, "DDIM",
+                    50, 7.5, 0.8, "expert_ensemble_refiner",
+                    0.8, "test", "test"
+                )
+                
+                # THEN: Error message should include model name and id
+                mock_st.error.assert_called()
+                error_call = mock_st.error.call_args[0][0]
+                assert 'Helldiver Model' in error_call or 'helldiver' in error_call.lower()
+    
+    @pytest.mark.integration
+    def test_main_page_handles_network_error(self, mock_streamlit_secrets):
+        """Test AC1: Network errors are distinguished from other API errors (Story 1.7)."""
+        # GIVEN: Form submitted but network request fails
+        submitted = True
+        selected_model = {
+            'id': 'test-model',
+            'name': 'Test Model',
+            'endpoint': 'owner/model:version'
+        }
+        
+        with patch('streamlit_app.replicate.run') as mock_run:
+            mock_run.side_effect = requests.exceptions.RequestException("Network connection failed")
+            
+            # WHEN: Calling main_page
+            with patch('streamlit_app.st') as mock_st:
+                mock_container = MagicMock()
+                mock_st.empty.return_value.container.return_value = mock_container
+                mock_st.status.return_value.__enter__.return_value = MagicMock()
+                mock_st.status.return_value.__exit__ = MagicMock(return_value=None)
+                mock_st.session_state = {'selected_model': selected_model}
+                mock_st.get = lambda key, default=None: mock_st.session_state.get(key, default)
+                mock_st.error = MagicMock()
+                
+                main_page(
+                    submitted, 1024, 1024, 1, "DDIM",
+                    50, 7.5, 0.8, "expert_ensemble_refiner",
+                    0.8, "test", "test"
+                )
+                
+                # THEN: Error message should indicate network error
+                mock_st.error.assert_called()
+                error_call = mock_st.error.call_args[0][0]
+                assert 'Network' in error_call or 'network' in error_call.lower()
+                assert 'Test Model' in error_call
+    
+    @pytest.mark.integration
+    def test_main_page_handles_replicate_api_error(self, mock_streamlit_secrets):
+        """Test AC1: Replicate API-specific errors are distinguished (Story 1.7)."""
+        # GIVEN: Form submitted but Replicate API raises specific error
+        submitted = True
+        selected_model = {
+            'id': 'test-model',
+            'name': 'Test Model',
+            'endpoint': 'owner/model:version'
+        }
+        
+        # Create a mock ReplicateError
+        class MockReplicateError(Exception):
+            pass
+        
+        with patch('streamlit_app.replicate.run') as mock_run, \
+             patch('streamlit_app.replicate.exceptions.ReplicateError', MockReplicateError):
+            mock_run.side_effect = MockReplicateError("Authentication failed")
+            
+            # WHEN: Calling main_page
+            with patch('streamlit_app.st') as mock_st:
+                mock_container = MagicMock()
+                mock_st.empty.return_value.container.return_value = mock_container
+                mock_st.status.return_value.__enter__.return_value = MagicMock()
+                mock_st.status.return_value.__exit__ = MagicMock(return_value=None)
+                mock_st.session_state = {'selected_model': selected_model}
+                mock_st.get = lambda key, default=None: mock_st.session_state.get(key, default)
+                mock_st.error = MagicMock()
+                
+                main_page(
+                    submitted, 1024, 1024, 1, "DDIM",
+                    50, 7.5, 0.8, "expert_ensemble_refiner",
+                    0.8, "test", "test"
+                )
+                
+                # THEN: Error message should indicate Replicate API error
+                mock_st.error.assert_called()
+                error_call = mock_st.error.call_args[0][0]
+                assert 'Replicate' in error_call or 'replicate' in error_call.lower()
+                assert 'Test Model' in error_call
+    
+    @pytest.mark.integration
+    def test_initialize_session_state_app_does_not_crash_on_errors(self, mock_streamlit_secrets):
+        """Test AC3: Application does not crash when errors occur (Story 1.7)."""
+        # GIVEN: Various error scenarios
+        error_scenarios = [
+            FileNotFoundError("File not found"),
+            yaml.YAMLError("Invalid YAML"),
+            ValueError("Validation error"),
+            Exception("Unexpected error")
+        ]
+        
+        for error in error_scenarios:
+            with patch('streamlit_app.load_models_config') as mock_load, \
+                 patch('streamlit_app.get_replicate_model_endpoint') as mock_get_endpoint, \
+                 patch('streamlit_app.st') as mock_st:
+                
+                mock_load.side_effect = error
+                mock_get_endpoint.return_value = 'stability-ai/sdxl:test-version'
+                mock_st.session_state = {}
+                mock_st.error = MagicMock()
+                mock_st.warning = MagicMock()
+                mock_st.info = MagicMock()
+                
+                # WHEN: Initializing session state
+                try:
+                    initialize_session_state()
+                    # THEN: Should not raise exception (app doesn't crash)
+                    assert True  # If we get here, no exception was raised
+                except Exception as e:
+                    pytest.fail(f"Application crashed with error: {e}")
+    
+    @pytest.mark.integration
+    def test_error_messages_display_in_ui(self, mock_streamlit_secrets):
+        """Test AC4: Error messages are visible in UI using st.error/st.warning (Story 1.7)."""
+        # GIVEN: Error occurs during initialization
+        with patch('streamlit_app.load_models_config') as mock_load, \
+             patch('streamlit_app.st') as mock_st:
+            
+            mock_load.side_effect = ValueError("Test validation error")
+            mock_st.session_state = {}
+            mock_st.error = MagicMock()
+            mock_st.warning = MagicMock()
+            
+            # WHEN: Initializing session state
+            initialize_session_state()
+            
+            # THEN: Error/warning should be displayed in UI
+            assert mock_st.error.called or mock_st.warning.called
+    
+    @pytest.mark.integration
+    def test_errors_are_logged_appropriately(self, mock_streamlit_secrets, caplog):
+        """Test AC5: Errors are logged with appropriate severity and context (Story 1.7)."""
+        import logging
+        logging.basicConfig(level=logging.ERROR)
+        
+        # GIVEN: Error occurs during initialization
+        with patch('streamlit_app.load_models_config') as mock_load, \
+             patch('streamlit_app.get_replicate_model_endpoint') as mock_get_endpoint, \
+             patch('streamlit_app.st') as mock_st:
+            
+            mock_load.side_effect = ValueError("Model 'Test' (id: test): Missing required fields: endpoint")
+            mock_get_endpoint.return_value = 'stability-ai/sdxl:test-version'
+            mock_st.session_state = {}
+            mock_st.error = MagicMock()
+            mock_st.warning = MagicMock()
+            
+            # WHEN: Initializing session state
+            with caplog.at_level(logging.ERROR):
+                initialize_session_state()
+            
+            # THEN: Error should be logged with context
+            assert any("error" in record.levelname.lower() for record in caplog.records)
+            # Verify log contains useful context
+            log_messages = [record.message for record in caplog.records]
+            assert any("Test" in msg or "test" in msg.lower() for msg in log_messages)
