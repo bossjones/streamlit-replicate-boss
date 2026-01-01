@@ -55,5 +55,5 @@ development_status:
   2-4-auto-apply-preset-on-model-selection: done
   2-5-allow-manual-override-of-preset-values: done
   2-6-implement-backward-compatibility-with-existing-configuration: done
-  2-7-enhanced-ui-updates-for-model-switching: backlog
+  2-7-enhanced-ui-updates-for-model-switching: review
   epic-2-retrospective: optional
