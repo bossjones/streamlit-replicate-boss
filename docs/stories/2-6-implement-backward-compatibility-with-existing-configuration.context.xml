@@ -1,0 +1,124 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.6</storyId>
+    <title>Implement Backward Compatibility with Existing Configuration</title>
+    <status>drafted</status>
+    <generatedAt>2026-01-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-6-implement-backward-compatibility-with-existing-configuration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>user</asA>
+    <iWant>the app to still work with my existing single-model setup</iWant>
+    <soThat>I can migrate gradually without breaking current functionality</soThat>
+    <tasks>
+      <task id="1" ac="1">Verify fallback detection logic for missing models.yaml</task>
+      <task id="2" ac="2">Verify automatic single-model configuration creation from secrets</task>
+      <task id="3" ac="3">Verify app functions normally with single model from secrets</task>
+      <task id="4" ac="4">Verify models.yaml can be added later without code changes</task>
+      <task id="5" ac="5">Document migration path</task>
+      <task id="6" ac="6">Verify both configurations can coexist</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">If `models.yaml` doesn't exist, check for `REPLICATE_MODEL_ENDPOINTSTABILITY` in secrets.toml</criterion>
+    <criterion id="2">If found, create single-model configuration automatically from secrets</criterion>
+    <criterion id="3">App functions normally with single model from secrets (no errors)</criterion>
+    <criterion id="4">User can add `models.yaml` later to enable multi-model without code changes</criterion>
+    <criterion id="5">Migration path is documented</criterion>
+    <criterion id="6">Both configurations can coexist (secrets as fallback)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Integration &amp; API">
+        <snippet>FR020: The system must maintain backward compatibility with existing single-model configuration (secrets.toml) while supporting new multi-model configuration. App must handle missing or invalid configuration files gracefully, with fallback to a default model if available, or clear error message if no models are configured.</snippet>
+      </doc>
+      <doc path="docs/epics.md" title="Epic Breakdown" section="Story 2.6">
+        <snippet>Story 2.6: Implement Backward Compatibility with Existing Configuration. Acceptance criteria include checking for models.yaml, falling back to secrets.toml, creating single-model config automatically, ensuring app functions normally, allowing models.yaml to be added later, documenting migration path, and ensuring both configurations can coexist.</snippet>
+      </doc>
+      <doc path="docs/tech-spec.md" title="Technical Specification" section="Backward Compatibility Strategy">
+        <snippet>Backward compatibility strategy: 1. Check for models.yaml existence, 2. If missing, check REPLICATE_MODEL_ENDPOINTSTABILITY in secrets.toml, 3. If found in secrets, create single-model config automatically, 4. Fallback to existing hardcoded behavior if neither exists, 5. Both configurations can coexist (secrets as fallback).</snippet>
+      </doc>
+      <doc path="docs/architecture.md" title="Architecture Documentation" section="API Design">
+        <snippet>External API Integration: Replicate API Integration uses library `replicate` Python client, authentication via token-based via `st.secrets["REPLICATE_API_TOKEN"]`, model endpoint configured via `st.secrets["REPLICATE_MODEL_ENDPOINTSTABILITY"]</snippet>
+      </doc>
+      <doc path="README.md" title="Project README" section="Model Configuration">
+        <snippet>Model Configuration: The application supports multiple AI image generation models configured via `models.yaml` in the project root. To add a new model, edit `models.yaml` and add a new entry to the `models` array with required fields: id, name, endpoint.</snippet>
+      </doc>
+      <doc path="docs/stories/2-5-allow-manual-override-of-preset-values.md" title="Previous Story" section="Learnings from Previous Story">
+        <snippet>Session State Initialization: `initialize_session_state()` function handles model configuration loading and fallback logic (lines 221-380 in `streamlit_app.py`). This function already implements partial backward compatibility with fallback to secrets.toml. Fallback model is created with structure: `{'id': 'default', 'name': 'Default Model (from secrets.toml)', 'endpoint': fallback_endpoint}`.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact path="streamlit_app.py" kind="main application" symbol="initialize_session_state" lines="221-380" reason="Main function that handles model configuration loading and fallback logic. Implements backward compatibility by checking for models.yaml, falling back to secrets.toml when missing, and creating single-model configuration automatically."/>
+      <artifact path="streamlit_app.py" kind="helper function" symbol="get_replicate_model_endpoint" lines="207-209" reason="Function that retrieves REPLICATE_MODEL_ENDPOINTSTABILITY from secrets.toml. Used by fallback logic to get endpoint when models.yaml is missing."/>
+      <artifact path="streamlit_app.py" kind="helper function" symbol="get_secret" lines="175-199" reason="Helper function that retrieves secrets from Streamlit secrets or environment variables with fallback to default values. Used by get_replicate_model_endpoint() to access REPLICATE_MODEL_ENDPOINTSTABILITY."/>
+      <artifact path="config/model_loader.py" kind="module" symbol="load_models_config" lines="10-110" reason="Function that loads and validates models.yaml configuration file. Raises FileNotFoundError when models.yaml is missing, which triggers fallback logic in initialize_session_state()."/>
+      <artifact path="config/model_loader.py" kind="module" symbol="validate_model_config" lines="113-169" reason="Function that validates individual model configuration dictionary. Ensures model structure matches expected format (id, name, endpoint)."/>
+      <artifact path="utils/preset_manager.py" kind="module" symbol="load_presets_config" lines="10-136" reason="Function that loads presets.yaml configuration. Handles missing file gracefully (returns empty dict). Presets are independent of model configuration source, so they work with both models.yaml and fallback model."/>
+      <artifact path="streamlit_app.py" kind="helper function" symbol="_set_session_state" lines="24-40" reason="Helper function to set session state values that works with both dict-style and attribute-style access (for testing compatibility). Used to set model_configs and selected_model in fallback mode."/>
+    </code>
+    <dependencies>
+      <ecosystem name="python">
+        <package name="streamlit" version=">=1.50.0" reason="Web framework for UI and session state management"/>
+        <package name="pyyaml" version=">=6.0.1" reason="YAML parsing for models.yaml and presets.yaml configuration files"/>
+        <package name="replicate" version=">=1.0.7" reason="API client for Replicate model inference"/>
+        <package name="requests" version=">=2.32.5" reason="HTTP requests for image downloads"/>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="requirement">FR020: Must maintain backward compatibility with existing single-model configuration (secrets.toml) while supporting new multi-model configuration</constraint>
+    <constraint type="error-handling">App must handle missing models.yaml gracefully with clear error messages. App must not crash when models.yaml is missing if secrets.toml fallback is available</constraint>
+    <constraint type="configuration-priority">models.yaml should take precedence when both exist. secrets.toml should only be used as fallback when models.yaml is missing</constraint>
+    <constraint type="session-state">Fallback model must be stored in session state using same patterns as multi-model configuration (`model_configs`, `selected_model`). This ensures consistent behavior across both modes</constraint>
+    <constraint type="preset-independence">Presets are independent of model configuration source. Presets should work with both models.yaml and fallback model from secrets.toml</constraint>
+    <constraint type="migration">Users should be able to migrate gradually from secrets.toml to models.yaml without breaking existing functionality. Documentation should guide users through migration process</constraint>
+    <constraint type="testing">Tests must verify fallback detection, single-model configuration creation, app functionality with fallback, models.yaml precedence, and coexistence of both configurations</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="get_replicate_model_endpoint" kind="function signature" signature="def get_replicate_model_endpoint() -&gt; str" path="streamlit_app.py">
+      <description>Retrieves REPLICATE_MODEL_ENDPOINTSTABILITY from Streamlit secrets or environment variables. Returns default test endpoint if not found. Used by fallback logic to get endpoint when models.yaml is missing.</description>
+    </interface>
+    <interface name="load_models_config" kind="function signature" signature="def load_models_config(file_path: str = &quot;models.yaml&quot;) -&gt; List[Dict[str, Any]]" path="config/model_loader.py">
+      <description>Loads and validates models.yaml configuration file. Raises FileNotFoundError when file is missing, which triggers fallback logic in initialize_session_state().</description>
+    </interface>
+    <interface name="initialize_session_state" kind="function signature" signature="def initialize_session_state() -&gt; None" path="streamlit_app.py">
+      <description>Initializes session state for model management. Handles model configuration loading, fallback to secrets.toml when models.yaml is missing, and creates single-model configuration automatically from secrets.</description>
+    </interface>
+    <interface name="load_presets_config" kind="function signature" signature="def load_presets_config(file_path: str = &quot;presets.yaml&quot;, validate_model_ids: bool = True) -&gt; Dict[str, List[Dict[str, Any]]]" path="utils/preset_manager.py">
+      <description>Loads presets.yaml configuration. Handles missing file gracefully (returns empty dict). Presets are independent of model configuration source, so they work with both models.yaml and fallback model.</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Testing uses pytest framework with unit, integration, and end-to-end test markers. Tests follow GIVEN/WHEN/THEN structure. Use Streamlit's AppTest for UI testing. Mock Streamlit secrets for testing. Test coverage includes fallback detection, configuration creation, app functionality, migration path, and coexistence scenarios.</standards>
+    <locations>
+      <location>tests/unit/</location>
+      <location>tests/integration/</location>
+      <location>tests/support/</location>
+    </locations>
+    <ideas>
+      <test ac="1">Test fallback detection when models.yaml is missing and REPLICATE_MODEL_ENDPOINTSTABILITY exists in secrets.toml</test>
+      <test ac="1">Test fallback detection when models.yaml is missing and REPLICATE_MODEL_ENDPOINTSTABILITY is not in secrets.toml</test>
+      <test ac="2">Test automatic single-model configuration creation from secrets.toml with correct structure (id: 'default', name: 'Default Model (from secrets.toml)', endpoint: fallback_endpoint)</test>
+      <test ac="2">Test fallback model is added to model_configs session state</test>
+      <test ac="2">Test fallback model is set as selected_model in session state</test>
+      <test ac="3">Test app functions normally with secrets.toml only (no models.yaml) - model selector displays fallback model</test>
+      <test ac="3">Test image generation works with fallback model endpoint</test>
+      <test ac="3">Test no errors occur when using fallback configuration</test>
+      <test ac="3">Test preset loading still works in fallback mode</test>
+      <test ac="4">Test app switches from fallback to models.yaml when file is added (models.yaml takes precedence)</test>
+      <test ac="4">Test no code changes needed to switch from fallback to models.yaml</test>
+      <test ac="6">Test models.yaml takes precedence when both exist</test>
+      <test ac="6">Test secrets.toml used as fallback when models.yaml missing</test>
+      <test ac="6">Test no conflicts between configurations</test>
+    </ideas>
+  </tests>
+</story-context>

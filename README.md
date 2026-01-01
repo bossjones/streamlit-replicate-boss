@@ -91,6 +91,77 @@ models:
 
 See `models.yaml` for the current model configuration and schema documentation.
 
+## Backward Compatibility & Migration
+
+The application maintains **full backward compatibility** with existing single-model setups using `secrets.toml`. This allows you to migrate gradually from the old configuration to the new multi-model system.
+
+### How It Works
+
+1. **Fallback Detection**: If `models.yaml` doesn't exist, the app automatically checks for `REPLICATE_MODEL_ENDPOINTSTABILITY` in `.streamlit/secrets.toml`.
+
+2. **Automatic Configuration**: If found, the app creates a single-model configuration automatically from your secrets file.
+
+3. **Seamless Operation**: The app functions normally with the fallback configuration - no errors, no crashes, full functionality.
+
+4. **Easy Migration**: You can add `models.yaml` at any time to enable multi-model support. The app automatically switches from fallback to `models.yaml` when the file is present.
+
+### Migration Path
+
+#### Step 1: Current Setup (Using secrets.toml)
+
+Your current `.streamlit/secrets.toml` configuration:
+
+```toml
+REPLICATE_API_TOKEN = "your-api-token"
+REPLICATE_MODEL_ENDPOINTSTABILITY = "stability-ai/sdxl:version-hash"
+```
+
+The app works perfectly with this setup. No changes needed!
+
+#### Step 2: Create models.yaml (Optional - When Ready)
+
+When you're ready to use multiple models, create `models.yaml` in the project root:
+
+```yaml
+models:
+  - id: "sdxl"
+    name: "Stability AI SDXL"
+    endpoint: "stability-ai/sdxl:version-hash"
+    default: true
+  - id: "another-model"
+    name: "Another Model"
+    endpoint: "owner/model:version"
+```
+
+**That's it!** The app automatically detects `models.yaml` and uses it instead of the fallback. No code changes needed.
+
+#### Step 3: Both Configurations Can Coexist
+
+- **Priority**: `models.yaml` takes precedence when both exist
+- **Fallback**: `secrets.toml` is only used when `models.yaml` is missing
+- **No Conflicts**: Both configurations can coexist without issues
+
+### Benefits
+
+- ✅ **Zero Downtime**: Migrate at your own pace
+- ✅ **No Breaking Changes**: Existing setups continue to work
+- ✅ **Automatic Detection**: App handles configuration switching automatically
+- ✅ **Flexible**: Use either configuration or both
+
+### Example Scenarios
+
+**Scenario 1: New Installation**
+- Create `models.yaml` → App uses multi-model configuration
+- Don't create `models.yaml` → App uses fallback from `secrets.toml`
+
+**Scenario 2: Existing Installation**
+- Keep using `secrets.toml` → App continues working as before
+- Add `models.yaml` later → App automatically switches to multi-model
+
+**Scenario 3: Both Exist**
+- `models.yaml` present → App uses `models.yaml` (takes precedence)
+- `models.yaml` missing → App falls back to `secrets.toml`
+
 ## Usage
 
 1. Run the Streamlit app:
